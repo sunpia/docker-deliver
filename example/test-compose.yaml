@@ -1,0 +1,18 @@
+services:
+  container0:
+    build:
+      context: ./container0
+      dockerfile: Dockerfile
+
+  container1:
+    build: 
+      context: ./container1
+      dockerfile: Dockerfile
+
+    depends_on:
+      - container0
+
+  container2:
+    build: 
+      context: ./container2
+      dockerfile: Dockerfile
