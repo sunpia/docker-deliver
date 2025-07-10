@@ -1,9 +1,10 @@
-FROM docker.io/library/container_base:latest AS base
+FROM container_base AS base
+
 
 WORKDIR /app
-COPY environment.yaml .
+COPY requirements.yaml .
 
-RUN conda env update -n env --file environment.yaml \
+RUN conda env update -n env --file requirements.yaml \
     && conda clean -a -y
 
 

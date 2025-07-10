@@ -1,28 +1,26 @@
+# additional_contexts: 
+# https://docs.docker.com/reference/compose-file/build/#additional_contexts
 services:
   container-base:
     image: docker.io/library/container_base:latest
-    build:
-      context: ./container_base
-      dockerfile: Dockerfile
 
   container0:
     build:
       context: ./container0
       dockerfile: Dockerfile
-    depends_on:
-      - container-base
+      additional_contexts:
+        container_base: "service:container-base"
 
   container1:
     build: 
       context: ./container1
       dockerfile: Dockerfile
-
-    depends_on:
-      - container-base
+      additional_contexts:
+        container_base: "service:container-base"
 
   container2:
     build: 
       context: ./container2
       dockerfile: Dockerfile
-    depends_on:
-      - container-base
+      additional_contexts:
+        container_base: "service:container-base"

@@ -5,7 +5,7 @@ WORKDIR /app
 USER root 
 RUN apt-get update && apt-get install -y rsync
 
-COPY environment.yaml .
+COPY requirements.yaml .
 
 # Create environment and install Python packages
-RUN conda env create -y -n env -f environment.yaml && conda clean -a -y
+RUN conda env create -y -n env -f requirements.yaml && conda clean -ya

@@ -6,23 +6,24 @@ import (
 )
 
 func NewSaveCmd() *cobra.Command {
-	var tag, logLevel string
-	var verbose bool
-	var outputDir string
-	var dockerComposePath string
-	var workDir string
+	var (
+		tag               string
+		logLevel          string
+		outputDir         string
+		dockerComposePath []string
+		workDir           string
+	)
 
-	saveCmd := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "save",
 		Short: "Save docker compose project",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config := Compose.ComposeConfig{
-				DockerComposePath: []string{dockerComposePath},
+				DockerComposePath: dockerComposePath,
 				WorkDir:           workDir,
 				OutputDir:         outputDir,
 				Tag:               tag,
 				LogLevel:          logLevel,
-				Verbose:           verbose,
 			}
 			ctx := cmd.Context()
 
@@ -30,29 +31,25 @@ func NewSaveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = client.BuildImage(ctx)
-			if err != nil {
+			if err := client.Build(ctx); err != nil {
 				return err
 			}
-			err = client.SaveImage(ctx)
-			if err != nil {
+			if err := client.SaveImages(ctx); err != nil {
 				return err
 			}
 			if err := client.SaveComposeFile(ctx); err != nil {
 				return err
 			}
-
 			return nil
 		},
 	}
 
-	saveCmd.Flags().StringVarP(&outputDir, "output", "o", "", "Output directory (required)")
-	saveCmd.Flags().StringVarP(&dockerComposePath, "file", "f", "", "Path to docker-compose file (required)")
-	saveCmd.Flags().StringVarP(&workDir, "workdir", "w", "", "Working directory (optional)")
-	saveCmd.Flags().StringVar(&tag, "tag", "", "Default tag for images (optional)")
-	saveCmd.Flags().StringVar(&logLevel, "loglevel", "info", "Log level: debug, info, warn, error (optional)")
-	saveCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose output (optional)")
-	saveCmd.MarkFlagRequired("file")
+	cmd.Flags().StringVarP(&outputDir, "output", "o", "", "Output directory (required)")
+	cmd.Flags().StringSliceVarP(&dockerComposePath, "file", "f", nil, "Path to docker-compose file (required)")
+	cmd.Flags().StringVarP(&workDir, "workdir", "w", "", "Working directory (optional)")
+	cmd.Flags().StringVarP(&tag, "tag", "t", "latest", "Default tag for images (optional)")
+	cmd.Flags().StringVarP(&logLevel, "loglevel", "l", "info", "Log level: debug, info, warn, error (optional)")
+	cmd.MarkFlagRequired("file")
 
-	return saveCmd
+	return cmd
 }
