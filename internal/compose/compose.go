@@ -143,7 +143,7 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 	if backend == nil {
 		return err
 	}
-	if err := backend.Build(ctx, project, api.BuildOptions{}); err != nil {
+	if err := backend.Build(ctx, project, api.BuildOptions{Builder: "default"}); err != nil {
 		c.logger.Errorf("Failed to build project: %v", err)
 		return err
 	}
