@@ -10,17 +10,16 @@ The following table compares the total size of delivered images using different 
 
 | Method                  | container0 | container1 | container2 | container-base | Total Size |
 |-------------------------|------------|------------|------------|----------------|------------|
-| **docker-deliver**      |  Included  |  Included  |  Included  |  Included      | **3.1 GB** |
+| **docker-deliver**      |  Included  |  Included  |  Included  |  Included      |  **3.1 GB**|
 | Separate Image Delivery |  1.8 GB    |  3.0 GB    |  1.8 GB    |   1.8 GB       |  **8.4 GB**|
 | Conda Pack Tarballs     |  1.8 GB    |  2.7 GB    |  1.8 GB    |   1.8 GB       |  **8.1 GB**|
 
 
 
 ### Key Benefits
-- **Consistent Runtime Environment:** All services share the same base image, ensuring identical dependencies and system libraries.
+**Consistent Runtime Environment:** By delivering the exact same Docker images, you can reliably reproduce the runtime environment on any host PC, ensuring your production and test environments are identical.
 - **Efficient Storage & Transfer:** Shared layers are packaged only once, dramatically reducing total size and network usage.
 - **Easy to Use:** Simple commands automate complex multi-service packaging and deployment.
-- **Layer Caching:** Faster builds and deployments by reusing common layers.
 - **Portability:** Single tarball contains everything needed for deployment on any Docker host.
 - **Offline Delivery:** Enables deployment in environments without network access or third-party tools—only Docker is required on the destination system.
 
@@ -41,10 +40,12 @@ example/
 │   ├── Dockerfile
 │   ├── environment.yaml
 │   └── hello_world.py
-└── container2/                    # Service 2 extending base
-    ├── Dockerfile
-    ├── environment.yaml
-    └── hello_world.py
+├── container2/                    # Service 2 extending base
+│   ├── Dockerfile
+│   ├── environment.yaml
+│   └── hello_world.py
+└── benchmark/
+    └── benchmark.sh               # Script to measure and compare image/tarball sizes
 ```
 
 ## Architecture Overview
@@ -142,7 +143,7 @@ To deploy the packaged project on another system:
 
 3. **Deploy services**:
    ```bash
-   docker-compose -f docker-compose.generated.yaml up -d
+   docker compose -f docker-compose.generated.yaml up
    ```
 
 ## Key Features Demonstrated
