@@ -1,8 +1,16 @@
 services:
+  container-base:
+    image: docker.io/library/container_base:latest
+    build:
+      context: ./container_base
+      dockerfile: Dockerfile
+
   container0:
     build:
       context: ./container0
       dockerfile: Dockerfile
+    depends_on:
+      - container-base
 
   container1:
     build: 
@@ -10,9 +18,11 @@ services:
       dockerfile: Dockerfile
 
     depends_on:
-      - container0
+      - container-base
 
   container2:
     build: 
       context: ./container2
       dockerfile: Dockerfile
+    depends_on:
+      - container-base

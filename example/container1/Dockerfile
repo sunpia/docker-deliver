@@ -1,20 +1,15 @@
-FROM mambaorg/micromamba:debian12-slim AS base
+FROM docker.io/library/container_base:latest AS base
 
 WORKDIR /app
-
-# Copy environment.yaml
 COPY environment.yaml .
 
-# Create environment and install Python packages
-RUN micromamba create -y -n env -f environment.yaml \
-    && micromamba clean -a -y
+RUN conda env update -n env --file environment.yaml \
+    && conda clean -a -y
 
-SHELL ["micromamba", "run", "-n", "env", "/bin/bash", "-c"]
 
-FROM base
+# Activate environment by default
+SHELL ["conda", "run", "-p", "/opt/conda/envs/env", "/bin/bash", "-c"]
 
-COPY environment-prod.yaml .
+COPY hello_world.py /app
 
-RUN micromamba env update -n env -f environment-prod.yaml \
-    && micromamba clean -a -y
-
+CMD ["conda", "run", "-p", "/opt/conda/envs/env", "python3", "/app/hello_world.py"]
