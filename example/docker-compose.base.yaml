@@ -1,0 +1,8 @@
+# additional_contexts: 
+# https://docs.docker.com/reference/compose-file/build/#additional_contexts
+services:
+  container-base:
+    build:
+      context: ./container_base
+      dockerfile: Dockerfile
+
