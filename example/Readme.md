@@ -14,7 +14,7 @@ The following table compares the total size of delivered images using different 
 | Separate Image Delivery |  1.8 GB    |  3.0 GB    |  1.8 GB    |   1.8 GB       |  **8.4 GB**|
 | Conda Pack Tarballs     |  1.8 GB    |  2.7 GB    |  1.8 GB    |   1.8 GB       |  **8.1 GB**|
 
-
+> **Note:** The benchmarks and results above are based on tests performed on a Linux platform. Results may vary on Windows due to differences in filesystem handling, image layer storage, and Docker implementation.
 
 ### Key Benefits
 **Consistent Runtime Environment:** By delivering the exact same Docker images, you can reliably reproduce the runtime environment on any host PC, ensuring your production and test environments are identical.
@@ -69,11 +69,7 @@ This example uses Docker's **additional contexts** feature to create a shared ba
 Run the following command from the project root directory:
 
 ```bash
-docker-deliver save \
-  -f example/docker-compose.base.yaml \
-  -f example/docker-compose.extend.yaml \
-  --tag latest \
-  -o tmp
+docker-deliver save -f example/docker-compose.base.yaml -f example/docker-compose.extend.yaml -o tmp
 ```
 
 ### Output Structure
@@ -138,7 +134,9 @@ To deploy the packaged project on another system:
 
 2. **Load images**:
    ```bash
-   docker load < images.tar
+   docker load < images.tar # Linux
+
+   docker load -i image.tar # Windows
    ```
 
 3. **Deploy services**:

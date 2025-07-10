@@ -36,3 +36,5 @@ dist/
 
 # Temporary files
 tmp/
+
+.docker/
