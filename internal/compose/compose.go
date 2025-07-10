@@ -135,6 +135,11 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Set environment variables to handle Windows Docker Desktop compatibility
+	if os.Getenv("OS") == "Windows_NT" {
+		c.logger.Debug("Configuring Docker environment for Windows desktop-linux context")
+		os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
+	}
 
 	if err := dockerCli.Initialize(flags.NewClientOptions()); err != nil {
 		return err
@@ -143,7 +148,7 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 	if backend == nil {
 		return err
 	}
-	if err := backend.Build(ctx, project, api.BuildOptions{Builder: "default"}); err != nil {
+	if err := backend.Build(ctx, project, api.BuildOptions{}); err != nil {
 		c.logger.Errorf("Failed to build project: %v", err)
 		return err
 	}
