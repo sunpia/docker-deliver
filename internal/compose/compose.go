@@ -35,16 +35,31 @@ type ComposeInterface interface {
 // ComposeClient implements ComposeInterface and holds project state.
 type ComposeClient struct {
 	Config           ComposeConfig
-	ComposeInterface // Not strictly necessary, but kept for interface compliance
+	ComposeInterface // Interface embedding
 	Project          *types.Project
 	logger           *logrus.Logger
 }
+
+// Dependency injection for testability
+var (
+	osCreate           = os.Create
+	osMkdirAll         = os.MkdirAll
+	yamlMarshal        = yaml.Marshal
+	newComposeService  = compose.NewComposeService
+	projectFromOptions = cli.ProjectFromOptions
+	newDockerClient    = func() (*client.Client, error) {
+		return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	}
+	newDockerCli = func(apiClient client.APIClient) (*command.DockerCli, error) {
+		return command.NewDockerCli(command.WithAPIClient(apiClient))
+	}
+)
 
 // NewComposeClient creates and initializes a ComposeClient.
 func NewComposeClient(ctx context.Context, config ComposeConfig) (*ComposeClient, error) {
 	level, err := logrus.ParseLevel(config.LogLevel)
 	if err != nil {
-		level = logrus.InfoLevel
+		return nil, err
 	}
 
 	c := &ComposeClient{
@@ -59,7 +74,7 @@ func NewComposeClient(ctx context.Context, config ComposeConfig) (*ComposeClient
 	}
 
 	if _, err := os.Stat(c.Config.OutputDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(c.Config.OutputDir, 0755); err != nil {
+		if err := osMkdirAll(c.Config.OutputDir, 0755); err != nil {
 			c.logger.Errorf("Failed to create output directory: %v", err)
 			return nil, err
 		}
@@ -69,14 +84,13 @@ func NewComposeClient(ctx context.Context, config ComposeConfig) (*ComposeClient
 
 // load loads the compose project from the provided config.
 func (c *ComposeClient) load(ctx context.Context) error {
-	project, err := cli.ProjectFromOptions(ctx, &cli.ProjectOptions{
+	project, err := projectFromOptions(ctx, &cli.ProjectOptions{
 		ConfigPaths: c.Config.DockerComposePath,
 		WorkingDir:  c.Config.WorkDir,
 		Environment: map[string]string{},
 	})
 	if err != nil {
-		c.logger.Errorf("Error loading compose file: %v", err)
-		os.Exit(1)
+		return err
 	}
 	c.Project = project
 	return nil
@@ -88,14 +102,14 @@ func (c *ComposeClient) SaveComposeFile(ctx context.Context) error {
 		return nil
 	}
 	outPath := c.Config.OutputDir + "/docker-compose.generated.yaml"
-	file, err := os.Create(outPath)
+	file, err := osCreate(outPath)
 	if err != nil {
 		c.logger.Errorf("Failed to create compose file: %v", err)
 		return err
 	}
 	defer file.Close()
 
-	data, err := yaml.Marshal(c.Project)
+	data, err := yamlMarshal(c.Project)
 	if err != nil {
 		c.logger.Errorf("Failed to marshal compose project: %v", err)
 		return err
@@ -116,7 +130,6 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 		return nil
 	}
 
-	// Ensure all services have an image tag
 	for _, s := range project.Services {
 		if s.Image == "" {
 			s.Image = s.Name + ":" + c.Config.Tag
@@ -125,17 +138,17 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 		}
 	}
 
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	dockerClient, err := newDockerClient()
 	if err != nil {
 		return err
 	}
 	defer dockerClient.Close()
 
-	dockerCli, err := command.NewDockerCli(command.WithAPIClient(dockerClient))
+	dockerCli, err := newDockerCli(dockerClient)
 	if err != nil {
 		return err
 	}
-	// Set environment variables to handle Windows Docker Desktop compatibility
+
 	if os.Getenv("OS") == "Windows_NT" {
 		c.logger.Debug("Configuring Docker environment for Windows desktop-linux context")
 		os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
@@ -144,7 +157,8 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 	if err := dockerCli.Initialize(flags.NewClientOptions()); err != nil {
 		return err
 	}
-	backend := compose.NewComposeService(dockerCli)
+
+	backend := newComposeService(dockerCli)
 	if backend == nil {
 		return err
 	}
@@ -153,7 +167,6 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 		return err
 	}
 
-	// Remove build context from services
 	for _, s := range project.Services {
 		if s.Build != nil {
 			s.Build = nil
@@ -166,7 +179,7 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 
 // SaveImages saves all images from the compose project to a tar archive.
 func (c *ComposeClient) SaveImages(ctx context.Context) error {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	cli, err := newDockerClient()
 	if err != nil {
 		c.logger.Errorf("Error creating Docker client: %v", err)
 		return err

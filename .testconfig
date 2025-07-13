@@ -1,0 +1,27 @@
+# Go Test Configuration
+# This file defines test settings for the docker-deliver project
+
+# Test timeout settings
+timeout=5m
+
+# Coverage settings
+coverage_mode=atomic
+coverage_threshold=70
+
+# Test flags
+verbose=true
+race=true
+short=false
+
+# Test directories
+unit_test_dirs=./internal/... ./cmd/...
+integration_test_dirs=./test/integration/...
+e2e_test_dirs=./test/e2e/...
+
+# Exclude patterns
+exclude_dirs=vendor/,dist/,tmp/
+
+# Output settings
+coverage_output=coverage.out
+coverage_html=coverage.html
+test_output_format=json
