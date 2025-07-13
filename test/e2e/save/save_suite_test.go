@@ -1,36 +1,36 @@
-package save_e2e
+package savee2e
 
 import (
 	"os"
 	"os/exec"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	. "github.com/sunpia/docker-deliver/test/e2e"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
+	"github.com/sunpia/docker-deliver/test/e2e"
 )
 
 func TestSave(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Save Suite")
+	gomega.RegisterFailHandler(ginkgo.Fail)
+	ginkgo.RunSpecs(t, "Save Suite")
 }
 
-var _ = Describe("Compile Pkg", func() {
+var _ = ginkgo.Describe("Compile Pkg", func() {
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		// Jump to the project root directory
-		projectRoot, err := ProjectRootPath()
-		Expect(err).NotTo(HaveOccurred())
+		projectRoot, err := e2e.ProjectRootPath()
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		err = os.Chdir(projectRoot)
-		Expect(err).NotTo(HaveOccurred())
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 
-	It("should install the CLI binary", func() {
-		InstallApplication()
+	ginkgo.It("should install the CLI binary", func() {
+		_ = e2e.InstallApplication() // Ignoring error for test setup
 		cmd := exec.Command("docker-deliver", "--help")
 		output, err := cmd.CombinedOutput()
-		Expect(err).NotTo(HaveOccurred(), "failed to execute 'docker-deliver --help'")
-		Expect(string(output)).To(ContainSubstring("Usage"), "output should contain 'Usage'")
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to execute 'docker-deliver --help'")
+		gomega.Expect(string(output)).To(gomega.ContainSubstring("Usage"), "output should contain 'Usage'")
 	})
 
 })

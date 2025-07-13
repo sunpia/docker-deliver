@@ -5,15 +5,15 @@ import (
 	"github.com/sunpia/docker-deliver/cmd/commands"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "docker-deliver",
-	Short: "Docker-deliver is a deployment tool",
+func newRootCmd() *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "docker-deliver",
+		Short: "Docker-deliver is a deployment tool",
+	}
+	rootCmd.AddCommand(commands.NewSaveCmd())
+	return rootCmd
 }
 
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
-}
-
-func init() {
-	rootCmd.AddCommand(commands.NewSaveCmd())
+	cobra.CheckErr(newRootCmd().Execute())
 }

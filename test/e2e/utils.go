@@ -5,7 +5,7 @@ import (
 	"os/exec"
 )
 
-// InsatllApplication runs 'make install' to build the application.
+// InstallApplication runs 'make install' to build the application.
 func InstallApplication() error {
 	cmd := exec.Command("make", "install")
 	cmd.Stdout = nil

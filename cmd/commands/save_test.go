@@ -1,15 +1,21 @@
-package commands
+package commands_test
 
 import (
 	"bytes"
 	"strings"
 	"testing"
 
+	SaveCmd "github.com/sunpia/docker-deliver/cmd/commands"
 	Compose "github.com/sunpia/docker-deliver/internal/compose"
 )
 
+const (
+	expectedOutputDir = "/tmp/output"
+	expectedWorkDir   = "/tmp/work"
+)
+
 func TestNewSaveCmd(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	if cmd.Use != "save" {
 		t.Errorf("Expected Use to be 'save', got '%s'", cmd.Use)
@@ -58,7 +64,7 @@ func TestNewSaveCmd(t *testing.T) {
 }
 
 func TestSaveCmd_FlagShortNames(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	// Test short flag names
 	testCases := map[string]string{
@@ -82,7 +88,7 @@ func TestSaveCmd_FlagShortNames(t *testing.T) {
 }
 
 func TestSaveCmd_FlagDefaults(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	testCases := map[string]string{
 		"tag":      "latest",
@@ -104,7 +110,7 @@ func TestSaveCmd_FlagDefaults(t *testing.T) {
 }
 
 func TestSaveCmd_RequiredFlags(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	// Capture stderr to check for error message about required flags
 	var stderr bytes.Buffer
@@ -125,14 +131,14 @@ func TestSaveCmd_RequiredFlags(t *testing.T) {
 }
 
 func TestSaveCmd_FlagParsing(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	// Set flags and verify they can be parsed
 	args := []string{
 		"--file", "docker-compose.yml",
 		"--file", "docker-compose.override.yml",
-		"--output", "/tmp/output",
-		"--workdir", "/tmp/work",
+		"--output", expectedOutputDir,
+		"--workdir", expectedWorkDir,
 		"--tag", "v1.0.0",
 		"--loglevel", "debug",
 	}
@@ -155,16 +161,16 @@ func TestSaveCmd_FlagParsing(t *testing.T) {
 	if outputFlag == nil {
 		t.Fatal("output flag not found")
 	}
-	if outputFlag.Value.String() != "/tmp/output" {
-		t.Errorf("Expected output to be '/tmp/output', got '%s'", outputFlag.Value.String())
+	if outputFlag.Value.String() != expectedOutputDir {
+		t.Errorf("Expected output to be '%s', got '%s'", expectedOutputDir, outputFlag.Value.String())
 	}
 
 	workdirFlag := cmd.Flag("workdir")
 	if workdirFlag == nil {
 		t.Fatal("workdir flag not found")
 	}
-	if workdirFlag.Value.String() != "/tmp/work" {
-		t.Errorf("Expected workdir to be '/tmp/work', got '%s'", workdirFlag.Value.String())
+	if workdirFlag.Value.String() != expectedWorkDir {
+		t.Errorf("Expected workdir to be '%s', got '%s'", expectedWorkDir, workdirFlag.Value.String())
 	}
 
 	tagFlag := cmd.Flag("tag")
@@ -185,13 +191,13 @@ func TestSaveCmd_FlagParsing(t *testing.T) {
 }
 
 func TestSaveCmd_ShortFlags(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	// Test short flag equivalents
 	args := []string{
 		"-f", "docker-compose.yml",
-		"-o", "/tmp/output",
-		"-w", "/tmp/work",
+		"-o", expectedOutputDir,
+		"-w", expectedWorkDir,
 		"-t", "v2.0.0",
 		"-l", "warn",
 	}
@@ -204,12 +210,12 @@ func TestSaveCmd_ShortFlags(t *testing.T) {
 	}
 
 	// Verify short flags work
-	if cmd.Flag("output").Value.String() != "/tmp/output" {
-		t.Errorf("Expected output to be '/tmp/output', got '%s'", cmd.Flag("output").Value.String())
+	if cmd.Flag("output").Value.String() != expectedOutputDir {
+		t.Errorf("Expected output to be '%s', got '%s'", expectedOutputDir, cmd.Flag("output").Value.String())
 	}
 
-	if cmd.Flag("workdir").Value.String() != "/tmp/work" {
-		t.Errorf("Expected workdir to be '/tmp/work', got '%s'", cmd.Flag("workdir").Value.String())
+	if cmd.Flag("workdir").Value.String() != expectedWorkDir {
+		t.Errorf("Expected workdir to be '%s', got '%s'", expectedWorkDir, cmd.Flag("workdir").Value.String())
 	}
 
 	if cmd.Flag("tag").Value.String() != "v2.0.0" {
@@ -222,13 +228,13 @@ func TestSaveCmd_ShortFlags(t *testing.T) {
 }
 
 func TestSaveCmd_MultipleFiles(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	args := []string{
 		"--file", "docker-compose.yml",
 		"--file", "docker-compose.prod.yml",
 		"--file", "docker-compose.override.yml",
-		"--output", "/tmp/output",
+		"--output", expectedOutputDir,
 	}
 
 	cmd.SetArgs(args)
@@ -260,8 +266,8 @@ func TestSaveCmd_ConfigCreation(t *testing.T) {
 	// This tests the part of RunE that creates the ComposeConfig
 
 	dockerComposePath := []string{"docker-compose.yml", "docker-compose.override.yml"}
-	workDir := "/tmp/work"
-	outputDir := "/tmp/output"
+	workDir := expectedWorkDir
+	outputDir := expectedOutputDir
 	tag := "v1.0.0"
 	logLevel := "debug"
 
@@ -305,7 +311,7 @@ func TestSaveCmd_ConfigCreation(t *testing.T) {
 }
 
 func TestSaveCmd_HelpText(t *testing.T) {
-	cmd := NewSaveCmd()
+	cmd := SaveCmd.NewSaveCmd()
 
 	// Test that help can be generated without errors
 	var helpOutput bytes.Buffer

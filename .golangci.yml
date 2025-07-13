@@ -450,3 +450,4 @@ linters:
           - gosec
           - noctx
           - wrapcheck
+        text: 'unusedwrite:' # Allow unused struct fields in tests
