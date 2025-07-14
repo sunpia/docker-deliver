@@ -1,4 +1,4 @@
-.PHONY: build install test test-unit test-coverage test-race test-bench test-clean test-watch
+.PHONY: build install test test-unit test-coverage test-race test-bench test-clean test-watch lint
 
 build:
 	go build -o ./dist/docker-deliver ./cmd/docker-deliver
@@ -30,3 +30,6 @@ test-all: test-clean test-unit test-coverage
 
 e2e:
 	go test ./test/e2e/...
+
+lint:
+	golangci-lint run --config .golangci.yml ./...

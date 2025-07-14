@@ -16,8 +16,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ComposeConfig holds configuration for ComposeClient.
-type ComposeConfig struct {
+// ClientConfig holds configuration for ComposeClient.
+type ClientConfig struct {
 	DockerComposePath []string `json:"docker_compose_path"`
 	WorkDir           string   `json:"work_dir"`
 	OutputDir         string   `json:"output_dir"`
@@ -25,8 +25,8 @@ type ComposeConfig struct {
 	LogLevel          string   `json:"loglevel"` // Log level: "debug", "info", "warn", "error"
 }
 
-// ComposeInterface defines the main Compose actions.
-type ComposeInterface interface {
+// ClientInterface defines the main Compose actions.
+type ClientInterface interface {
 	SaveImages(ctx context.Context) error
 	SaveComposeFile(ctx context.Context) error
 	Build(ctx context.Context) error
@@ -62,44 +62,44 @@ func DefaultDependencies() *Dependencies {
 	}
 }
 
-// ComposeClient implements ComposeInterface and holds project state.
-type ComposeClient struct {
-	ComposeInterface // Interface embedding
+// Client implements ComposeInterface and holds project state.
+type Client struct {
+	ClientInterface // Interface embedding
 
-	Config  ComposeConfig
+	Config  ClientConfig
 	Project *types.Project
-	logger  *logrus.Logger
-	deps    *Dependencies
+	Logger  *logrus.Logger
+	Deps    *Dependencies
 }
 
 // NewComposeClient creates and initializes a ComposeClient.
-func NewComposeClient(ctx context.Context, config ComposeConfig) (*ComposeClient, error) {
+func NewComposeClient(ctx context.Context, config ClientConfig) (*Client, error) {
 	return NewComposeClientWithDeps(ctx, config, DefaultDependencies())
 }
 
 // NewComposeClientWithDeps creates a ComposeClient with custom dependencies for testing.
-func NewComposeClientWithDeps(ctx context.Context, config ComposeConfig, deps *Dependencies) (*ComposeClient, error) {
+func NewComposeClientWithDeps(ctx context.Context, config ClientConfig, deps *Dependencies) (*Client, error) {
 	level, err := logrus.ParseLevel(config.LogLevel)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &ComposeClient{
+	c := &Client{
 		Config: config,
-		logger: logrus.New(),
-		deps:   deps,
+		Logger: logrus.New(),
+		Deps:   deps,
 	}
-	c.logger.SetLevel(level)
+	c.Logger.SetLevel(level)
 
 	if loadErr := c.load(ctx); loadErr != nil {
-		c.logger.Errorf("Error loading compose file: %v", loadErr)
+		c.Logger.Errorf("Error loading compose file: %v", loadErr)
 		return nil, loadErr
 	}
 
 	if _, statErr := os.Stat(c.Config.OutputDir); os.IsNotExist(statErr) {
 		const dirPermissions = 0755
-		if mkdirErr := c.deps.OSMkdirAll(c.Config.OutputDir, dirPermissions); mkdirErr != nil {
-			c.logger.Errorf("Failed to create output directory: %v", mkdirErr)
+		if mkdirErr := c.Deps.OSMkdirAll(c.Config.OutputDir, dirPermissions); mkdirErr != nil {
+			c.Logger.Errorf("Failed to create output directory: %v", mkdirErr)
 			return nil, mkdirErr
 		}
 	}
@@ -107,8 +107,8 @@ func NewComposeClientWithDeps(ctx context.Context, config ComposeConfig, deps *D
 }
 
 // load loads the compose project from the provided config.
-func (c *ComposeClient) load(ctx context.Context) error {
-	project, err := c.deps.ProjectFromOptions(ctx, &cli.ProjectOptions{
+func (c *Client) load(ctx context.Context) error {
+	project, err := c.Deps.ProjectFromOptions(ctx, &cli.ProjectOptions{
 		ConfigPaths: c.Config.DockerComposePath,
 		WorkingDir:  c.Config.WorkDir,
 		Environment: map[string]string{},
@@ -121,34 +121,34 @@ func (c *ComposeClient) load(ctx context.Context) error {
 }
 
 // SaveComposeFile writes the current compose project to a YAML file.
-func (c *ComposeClient) SaveComposeFile(_ context.Context) error {
+func (c *Client) SaveComposeFile(_ context.Context) error {
 	if c.Project == nil {
 		return nil
 	}
 	outPath := c.Config.OutputDir + "/docker-compose.generated.yaml"
-	file, err := c.deps.OSCreate(outPath)
+	file, err := c.Deps.OSCreate(outPath)
 	if err != nil {
-		c.logger.Errorf("Failed to create compose file: %v", err)
+		c.Logger.Errorf("Failed to create compose file: %v", err)
 		return err
 	}
 	defer file.Close()
 
-	data, err := c.deps.YAMLMarshal(c.Project)
+	data, err := c.Deps.YAMLMarshal(c.Project)
 	if err != nil {
-		c.logger.Errorf("Failed to marshal compose project: %v", err)
+		c.Logger.Errorf("Failed to marshal compose project: %v", err)
 		return err
 	}
 
 	if _, writeErr := file.Write(data); writeErr != nil {
-		c.logger.Errorf("Failed to write compose file: %v", writeErr)
+		c.Logger.Errorf("Failed to write compose file: %v", writeErr)
 		return writeErr
 	}
-	c.logger.Infof("Saved compose file to %s", outPath)
+	c.Logger.Infof("Saved compose file to %s", outPath)
 	return nil
 }
 
 // Build builds all services in the compose project.
-func (c *ComposeClient) Build(ctx context.Context) error {
+func (c *Client) Build(ctx context.Context) error {
 	project := c.Project
 	if project == nil {
 		return nil
@@ -158,23 +158,23 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 		if s.Image == "" {
 			s.Image = s.Name + ":" + c.Config.Tag
 			project.Services[s.Name] = s
-			c.logger.Debugf("Tag Service %s image tag: %s", s.Name, s.Image)
+			c.Logger.Debugf("Tag Service %s image tag: %s", s.Name, s.Image)
 		}
 	}
 
-	dockerClient, err := c.deps.NewDockerClient()
+	dockerClient, err := c.Deps.NewDockerClient()
 	if err != nil {
 		return err
 	}
 	defer dockerClient.Close()
 
-	dockerCli, err := c.deps.NewDockerCli(dockerClient)
+	dockerCli, err := c.Deps.NewDockerCli(dockerClient)
 	if err != nil {
 		return err
 	}
 
 	if os.Getenv("OS") == "Windows_NT" {
-		c.logger.Debug("Configuring Docker environment for Windows desktop-linux context")
+		c.Logger.Debug("Configuring Docker environment for Windows desktop-linux context")
 		_ = os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
 	}
 
@@ -182,12 +182,12 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 		return initErr
 	}
 
-	backend := c.deps.NewComposeService(dockerCli)
+	backend := c.Deps.NewComposeService(dockerCli)
 	if backend == nil {
 		return err
 	}
 	if buildErr := backend.Build(ctx, project, api.BuildOptions{}); buildErr != nil {
-		c.logger.Errorf("Failed to build project: %v", buildErr)
+		c.Logger.Errorf("Failed to build project: %v", buildErr)
 		return buildErr
 	}
 
@@ -202,10 +202,10 @@ func (c *ComposeClient) Build(ctx context.Context) error {
 }
 
 // SaveImages saves all images from the compose project to a tar archive.
-func (c *ComposeClient) SaveImages(ctx context.Context) error {
-	cli, err := c.deps.NewDockerClient()
+func (c *Client) SaveImages(ctx context.Context) error {
+	cli, err := c.Deps.NewDockerClient()
 	if err != nil {
-		c.logger.Errorf("Error creating Docker client: %v", err)
+		c.Logger.Errorf("Error creating Docker client: %v", err)
 		return err
 	}
 	defer cli.Close()
@@ -215,18 +215,18 @@ func (c *ComposeClient) SaveImages(ctx context.Context) error {
 		if svc.Image != "" {
 			images = append(images, svc.Image)
 		} else {
-			c.logger.Warnf("Service %s does not have an image specified.", svc.Name)
+			c.Logger.Warnf("Service %s does not have an image specified.", svc.Name)
 		}
 	}
 
 	if len(images) == 0 {
-		c.logger.Error("No images to save")
+		c.Logger.Error("No images to save")
 		return nil
 	}
 
 	imageSaveReader, err := cli.ImageSave(ctx, images)
 	if err != nil {
-		c.logger.Errorf("Failed to save images: %v", err)
+		c.Logger.Errorf("Failed to save images: %v", err)
 		return err
 	}
 	defer imageSaveReader.Close()
@@ -234,22 +234,22 @@ func (c *ComposeClient) SaveImages(ctx context.Context) error {
 	outPath := c.Config.OutputDir + "/images.tar"
 	outFile, err := os.Create(outPath)
 	if err != nil {
-		c.logger.Errorf("Failed to create tar file for images: %v", err)
+		c.Logger.Errorf("Failed to create tar file for images: %v", err)
 		return err
 	}
 	defer outFile.Close()
 
 	if _, copyErr := io.Copy(outFile, imageSaveReader); copyErr != nil {
-		c.logger.Errorf("Failed to write image tar: %v", copyErr)
+		c.Logger.Errorf("Failed to write image tar: %v", copyErr)
 		return copyErr
 	}
 	fi, err := outFile.Stat()
 	if err != nil {
-		c.logger.Warnf("Could not get file size for %s: %v", outPath, err)
+		c.Logger.Warnf("Could not get file size for %s: %v", outPath, err)
 	} else {
 		const bytesToGB = 1024 * 1024 * 1024
 		sizeGB := float64(fi.Size()) / bytesToGB
-		c.logger.Infof("Saved images to %s (%.2f GB)", outPath, sizeGB)
+		c.Logger.Infof("Saved images to %s (%.2f GB)", outPath, sizeGB)
 	}
 	return nil
 }

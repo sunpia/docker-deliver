@@ -18,7 +18,7 @@ func NewSaveCmd() *cobra.Command {
 		Use:   "save",
 		Short: "Save docker compose project",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			config := Compose.ComposeConfig{
+			config := Compose.ClientConfig{
 				DockerComposePath: dockerComposePath,
 				WorkDir:           workDir,
 				OutputDir:         outputDir,

@@ -272,7 +272,7 @@ func TestSaveCmd_ConfigCreation(t *testing.T) {
 	logLevel := "debug"
 
 	// Create config the same way the command does
-	config := Compose.ComposeConfig{
+	config := Compose.ClientConfig{
 		DockerComposePath: dockerComposePath,
 		WorkDir:           workDir,
 		OutputDir:         outputDir,
