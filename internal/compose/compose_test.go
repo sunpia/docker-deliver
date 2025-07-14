@@ -759,3 +759,36 @@ func TestSaveImages_EmptyImagesList(t *testing.T) {
 	// The actual SaveImages call would return early without Docker operations
 	// when no images are found, so we'll just test the collection logic here
 }
+
+// Benchmark for SaveComposeFile
+// Example benchmark function
+func BenchmarkSaveComposeFile(b *testing.B) {
+	deps := setupTestDependencies()
+	tempDir := b.TempDir()
+	deps.OSCreate = os.Create
+	deps.YAMLMarshal = yaml.Marshal
+
+	mockProject := &types.Project{
+		Name: "bench-project",
+		Services: types.Services{
+			"web": types.ServiceConfig{
+				Name:  "web",
+				Image: "nginx:latest",
+			},
+		},
+	}
+
+	client := &ComposeClient{
+		Config: ComposeConfig{
+			OutputDir: tempDir,
+		},
+		Project: mockProject,
+		logger:  logrus.New(),
+		deps:    deps,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = client.SaveComposeFile(context.Background())
+	}
+}

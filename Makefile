@@ -6,9 +6,6 @@ build:
 install:
 	go install ./cmd/docker-deliver
 
-test:
-	go test ./internal/... ./cmd/...
-
 test-unit:
 	go test -v -race -timeout=5m ./internal/... ./cmd/...
 
