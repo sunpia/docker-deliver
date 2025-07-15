@@ -1,4 +1,4 @@
-.PHONY: build install test test-unit test-coverage test-race test-bench test-clean test-watch lint
+.PHONY: build install test test-unit test-coverage test-race test-bench test-clean test-watch lint e2e
 
 build:
 	go build -o ./dist/docker-deliver ./cmd/docker-deliver
@@ -6,8 +6,10 @@ build:
 install:
 	go install ./cmd/docker-deliver
 
-test-unit:
-	go test -v -race -timeout=5m ./internal/... ./cmd/...
+test:
+	go test -v -timeout=5m ./internal/... ./cmd/...
+
+test-unit: test
 
 test-coverage:
 	go test -coverprofile=coverage.out -covermode=atomic ./internal/... ./cmd/...

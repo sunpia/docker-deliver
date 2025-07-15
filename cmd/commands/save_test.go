@@ -112,9 +112,10 @@ func TestSaveCmd_FlagDefaults(t *testing.T) {
 func TestSaveCmd_RequiredFlags(t *testing.T) {
 	cmd := SaveCmd.NewSaveCmd()
 
-	// Capture stderr to check for error message about required flags
-	var stderr bytes.Buffer
+	// Capture stderr and stdout to avoid printing to console
+	var stderr, stdout bytes.Buffer
 	cmd.SetErr(&stderr)
+	cmd.SetOut(&stdout)
 
 	// Try to execute without required flags
 	cmd.SetArgs([]string{})
@@ -128,6 +129,9 @@ func TestSaveCmd_RequiredFlags(t *testing.T) {
 	if !strings.Contains(stderrOutput, "required flag") {
 		t.Errorf("Expected error message about required flag, got: %s", stderrOutput)
 	}
+
+	// Optionally, you can check stdout as well
+	_ = stdout.String()
 }
 
 func TestSaveCmd_FlagParsing(t *testing.T) {
@@ -272,7 +276,7 @@ func TestSaveCmd_ConfigCreation(t *testing.T) {
 	logLevel := "debug"
 
 	// Create config the same way the command does
-	config := Compose.ClientConfig{
+	config := Compose.Config{
 		DockerComposePath: dockerComposePath,
 		WorkDir:           workDir,
 		OutputDir:         outputDir,

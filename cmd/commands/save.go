@@ -18,7 +18,7 @@ func NewSaveCmd() *cobra.Command {
 		Use:   "save",
 		Short: "Save docker compose project",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			config := Compose.ClientConfig{
+			config := Compose.Config{
 				DockerComposePath: dockerComposePath,
 				WorkDir:           workDir,
 				OutputDir:         outputDir,
@@ -37,8 +37,10 @@ func NewSaveCmd() *cobra.Command {
 			if saveErr := client.SaveImages(ctx); saveErr != nil {
 				return saveErr
 			}
-			if composeErr := client.SaveComposeFile(ctx); composeErr != nil {
+			if composePath, composeErr := client.SaveComposeFile(ctx); composeErr != nil {
 				return composeErr
+			} else {
+				cmd.Println("Compose file saved to:", composePath)
 			}
 			return nil
 		},

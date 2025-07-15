@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
-	pkg "github.com/sunpia/docker-deliver/internal/compose"
+	Compose "github.com/sunpia/docker-deliver/internal/compose"
 )
 
 // Setup function to create a temporary directory for tests.
@@ -26,8 +26,8 @@ func setupTempDir(t *testing.T) string {
 }
 
 // Setup function to create test dependencies.
-func setupTestDependencies() *pkg.Dependencies {
-	return &pkg.Dependencies{
+func setupTestDependencies() *Compose.Dependencies {
+	return &Compose.Dependencies{
 		OSCreate:    os.Create,
 		OSMkdirAll:  os.MkdirAll,
 		YAMLMarshal: yaml.Marshal,
@@ -46,7 +46,7 @@ func setupTestDependencies() *pkg.Dependencies {
 
 // Simple test to verify the default dependencies work.
 func TestDefaultDependencies(t *testing.T) {
-	deps := pkg.DefaultDependencies()
+	deps := Compose.DefaultDependencies()
 	if deps.OSCreate == nil {
 		t.Error("OSCreate should not be nil")
 	}
@@ -62,7 +62,7 @@ func TestNewComposeClient_InvalidLogLevel(t *testing.T) {
 	setupTestDependencies()
 	tempDir := setupTempDir(t)
 
-	config := pkg.ClientConfig{
+	config := Compose.Config{
 		DockerComposePath: []string{"docker-compose.yml"},
 		WorkDir:           tempDir,
 		OutputDir:         tempDir,
@@ -70,7 +70,7 @@ func TestNewComposeClient_InvalidLogLevel(t *testing.T) {
 		LogLevel:          "invalid",
 	}
 
-	client, err := pkg.NewComposeClient(context.Background(), config)
+	client, err := Compose.NewComposeClient(context.Background(), config)
 
 	if err == nil {
 		t.Fatal("Expected error for invalid log level")
@@ -89,7 +89,7 @@ func TestNewComposeClient_LoadError(t *testing.T) {
 		return nil, errors.New("failed to load project")
 	}
 
-	config := pkg.ClientConfig{
+	config := Compose.Config{
 		DockerComposePath: []string{"docker-compose.yml"},
 		WorkDir:           tempDir,
 		OutputDir:         tempDir,
@@ -97,7 +97,7 @@ func TestNewComposeClient_LoadError(t *testing.T) {
 		LogLevel:          "info",
 	}
 
-	client, err := pkg.NewComposeClientWithDeps(context.Background(), config, deps)
+	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
 	if err == nil {
 		t.Fatal("Expected error from project loading")
@@ -125,7 +125,7 @@ func TestNewComposeClient_CreateOutputDirError(t *testing.T) {
 		return mockProject, nil
 	}
 
-	config := pkg.ClientConfig{
+	config := Compose.Config{
 		DockerComposePath: []string{"docker-compose.yml"},
 		WorkDir:           tempDir,
 		OutputDir:         "/nonexistent/path",
@@ -133,7 +133,7 @@ func TestNewComposeClient_CreateOutputDirError(t *testing.T) {
 		LogLevel:          "info",
 	}
 
-	client, err := pkg.NewComposeClientWithDeps(context.Background(), config, deps)
+	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
 	if err == nil {
 		t.Fatal("Expected error from mkdir")
@@ -172,8 +172,8 @@ func TestSaveComposeFile_Success(t *testing.T) {
 		return []byte("test yaml content"), nil
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: tempDir,
 		},
 		Project: mockProject,
@@ -181,7 +181,7 @@ func TestSaveComposeFile_Success(t *testing.T) {
 		Deps:    deps,
 	}
 
-	err := client.SaveComposeFile(context.Background())
+	_, err := client.SaveComposeFile(context.Background())
 
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
@@ -199,8 +199,8 @@ func TestSaveComposeFile_Success(t *testing.T) {
 
 func TestSaveComposeFile_NilProject(t *testing.T) {
 	deps := setupTestDependencies()
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: "/tmp",
 		},
 		Project: nil,
@@ -208,7 +208,7 @@ func TestSaveComposeFile_NilProject(t *testing.T) {
 		Deps:    deps,
 	}
 
-	err := client.SaveComposeFile(context.Background())
+	_, err := client.SaveComposeFile(context.Background())
 
 	if err != nil {
 		t.Errorf("Expected no error for nil project, got: %v", err)
@@ -221,8 +221,8 @@ func TestSaveComposeFile_CreateFileError(t *testing.T) {
 		return nil, errors.New("file creation failed")
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: "/tmp",
 		},
 		Project: &types.Project{Name: "test"},
@@ -230,7 +230,7 @@ func TestSaveComposeFile_CreateFileError(t *testing.T) {
 		Deps:    deps,
 	}
 
-	err := client.SaveComposeFile(context.Background())
+	_, err := client.SaveComposeFile(context.Background())
 
 	if err == nil {
 		t.Fatal("Expected error from file creation")
@@ -249,8 +249,8 @@ func TestSaveComposeFile_MarshalError(t *testing.T) {
 		return nil, errors.New("marshal failed")
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: tempDir,
 		},
 		Project: &types.Project{Name: "test"},
@@ -258,7 +258,7 @@ func TestSaveComposeFile_MarshalError(t *testing.T) {
 		Deps:    deps,
 	}
 
-	err := client.SaveComposeFile(context.Background())
+	_, err := client.SaveComposeFile(context.Background())
 
 	if err == nil {
 		t.Fatal("Expected error from yaml marshal")
@@ -270,7 +270,7 @@ func TestSaveComposeFile_MarshalError(t *testing.T) {
 
 func TestBuild_NilProject(t *testing.T) {
 	deps := setupTestDependencies()
-	client := &pkg.Client{
+	client := &Compose.Client{
 		Project: nil,
 		Logger:  logrus.New(),
 		Deps:    deps,
@@ -289,8 +289,8 @@ func TestBuild_DockerClientError(t *testing.T) {
 		return nil, errors.New("docker client creation failed")
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			Tag: "v1.0.0",
 		},
 		Project: &types.Project{Name: "test"},
@@ -314,8 +314,8 @@ func TestSaveImages_DockerClientError(t *testing.T) {
 		return nil, errors.New("docker client creation failed")
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: "/tmp",
 		},
 		Project: &types.Project{
@@ -357,8 +357,8 @@ func TestBuild_ServiceImageTagging(t *testing.T) {
 		},
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			Tag: "v1.0.0",
 		},
 		Project: mockProject,
@@ -392,8 +392,8 @@ func TestSaveImages_NoImagesSpecified(t *testing.T) {
 		},
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: "/tmp",
 		},
 		Project: mockProject,
@@ -430,8 +430,8 @@ func TestSaveImages_ImageCollection(t *testing.T) {
 		},
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: "/tmp",
 		},
 		Project: mockProject,
@@ -484,8 +484,8 @@ func TestSaveComposeFile_WriteError(t *testing.T) {
 		return []byte("test yaml content"), nil
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: tempDir,
 		},
 		Project: &types.Project{Name: "test"},
@@ -493,7 +493,7 @@ func TestSaveComposeFile_WriteError(t *testing.T) {
 		Deps:    deps,
 	}
 
-	err := client.SaveComposeFile(context.Background())
+	_, err := client.SaveComposeFile(context.Background())
 
 	if err == nil {
 		t.Fatal("Expected error from file write")
@@ -515,8 +515,8 @@ func TestBuild_WithExistingImages(t *testing.T) {
 		},
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			Tag: "v2.0.0",
 		},
 		Project: mockProject,
@@ -557,8 +557,8 @@ func TestBuild_BuildConfigRemoval(t *testing.T) {
 		},
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			Tag: "v1.0.0",
 		},
 		Project: mockProject,
@@ -600,7 +600,7 @@ func TestNewComposeClient_OutputDirExists(t *testing.T) {
 		return mockProject, nil
 	}
 
-	config := pkg.ClientConfig{
+	config := Compose.Config{
 		DockerComposePath: []string{"docker-compose.yml"},
 		WorkDir:           tempDir,
 		OutputDir:         existingDir, // Use existing directory
@@ -608,7 +608,7 @@ func TestNewComposeClient_OutputDirExists(t *testing.T) {
 		LogLevel:          "info",
 	}
 
-	client, err := pkg.NewComposeClientWithDeps(context.Background(), config, deps)
+	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
 	if err != nil {
 		t.Fatalf("Expected no error when output directory exists, got: %v", err)
@@ -628,8 +628,8 @@ func TestSaveImages_EmptyImagesList(t *testing.T) {
 		},
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: "/tmp",
 		},
 		Project: mockProject,
@@ -669,8 +669,8 @@ func BenchmarkSaveComposeFile(b *testing.B) {
 		},
 	}
 
-	client := &pkg.Client{
-		Config: pkg.ClientConfig{
+	client := &Compose.Client{
+		Config: Compose.Config{
 			OutputDir: tempDir,
 		},
 		Project: mockProject,
@@ -680,6 +680,6 @@ func BenchmarkSaveComposeFile(b *testing.B) {
 
 	b.ResetTimer()
 	for range b.N {
-		_ = client.SaveComposeFile(context.Background())
+		_, _ = client.SaveComposeFile(context.Background())
 	}
 }
