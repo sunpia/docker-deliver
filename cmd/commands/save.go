@@ -37,11 +37,11 @@ func NewSaveCmd() *cobra.Command {
 			if saveErr := client.SaveImages(ctx); saveErr != nil {
 				return saveErr
 			}
-			if composePath, composeErr := client.SaveComposeFile(ctx); composeErr != nil {
+			composePath, composeErr := client.SaveComposeFile(ctx)
+			if composeErr != nil {
 				return composeErr
-			} else {
-				cmd.Println("Compose file saved to:", composePath)
 			}
+			cmd.Println("Compose file saved to:", composePath)
 			return nil
 		},
 	}
