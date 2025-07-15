@@ -17,8 +17,8 @@ func NewSaveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "save",
 		Short: "Save docker compose project",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			config := Compose.ComposeConfig{
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			config := Compose.Config{
 				DockerComposePath: dockerComposePath,
 				WorkDir:           workDir,
 				OutputDir:         outputDir,
@@ -31,15 +31,17 @@ func NewSaveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := client.Build(ctx); err != nil {
-				return err
+			if buildErr := client.Build(ctx); buildErr != nil {
+				return buildErr
 			}
-			if err := client.SaveImages(ctx); err != nil {
-				return err
+			if saveErr := client.SaveImages(ctx); saveErr != nil {
+				return saveErr
 			}
-			if err := client.SaveComposeFile(ctx); err != nil {
-				return err
+			composePath, composeErr := client.SaveComposeFile(ctx)
+			if composeErr != nil {
+				return composeErr
 			}
+			cmd.Println("Compose file saved to:", composePath)
 			return nil
 		},
 	}
@@ -49,7 +51,7 @@ func NewSaveCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&workDir, "workdir", "w", "", "Working directory (optional)")
 	cmd.Flags().StringVarP(&tag, "tag", "t", "latest", "Default tag for images (optional)")
 	cmd.Flags().StringVarP(&logLevel, "loglevel", "l", "info", "Log level: debug, info, warn, error (optional)")
-	cmd.MarkFlagRequired("file")
+	_ = cmd.MarkFlagRequired("file") // Error handling: ignoring error for required flag
 
 	return cmd
 }
