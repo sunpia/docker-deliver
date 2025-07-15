@@ -172,6 +172,7 @@ func (c *Client) Build(ctx context.Context) error {
 	if os.Getenv("OS") == "Windows_NT" {
 		c.Logger.Debug("Configuring Docker environment for Windows desktop-linux context")
 		_ = os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
+		_ = os.Setenv("DOCKER_BUILDKIT", "1") // Enable BuildKit for better performance
 	}
 
 	if initErr := dockerCli.Initialize(flags.NewClientOptions()); initErr != nil {
