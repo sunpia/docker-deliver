@@ -6,7 +6,9 @@ toolchain go1.24.4
 
 require (
 	github.com/compose-spec/compose-go/v2 v2.7.1
-	github.com/docker/cli v28.3.2+incompatible
+	github.com/docker/cli v28.3.1+incompatible
+	github.com/docker/compose/v2 v2.38.1
+	github.com/docker/docker v28.3.1+incompatible
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	github.com/spf13/cobra v1.9.1
@@ -196,13 +198,11 @@ require (
 
 require (
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/compose/v2 v2.38.2
-	github.com/docker/docker v28.3.1+incompatible
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect

@@ -57,6 +57,7 @@ func DefaultDependencies() *Dependencies {
 		ProjectFromOptions: cli.ProjectFromOptions,
 		NewDockerClient: func() (*client.Client, error) {
 			return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+
 		},
 		NewDockerCli: func(apiClient client.APIClient) (*command.DockerCli, error) {
 			return command.NewDockerCli(command.WithAPIClient(apiClient))
@@ -158,12 +159,6 @@ func (c *Client) Build(ctx context.Context) error {
 		}
 	}
 
-	// Try to use the correct Docker host for Windows with Docker Desktop Linux engine
-	if os.Getenv("OS") == "Windows_NT" {
-		// Set to Docker Desktop Linux engine if not already set
-		_ = os.Setenv("DOCKER_BUILDKIT", "1")
-		// c.Logger.Debug("Set DOCKER_HOST to Docker Desktop Linux engine for Windows")
-	}
 	dockerClient, err := c.Deps.NewDockerClient()
 	if err != nil {
 		return err
@@ -171,6 +166,7 @@ func (c *Client) Build(ctx context.Context) error {
 	defer dockerClient.Close()
 
 	dockerCli, err := c.Deps.NewDockerCli(dockerClient)
+
 	if err != nil {
 		return err
 	}
@@ -183,6 +179,7 @@ func (c *Client) Build(ctx context.Context) error {
 	if backend == nil {
 		return err
 	}
+
 	if buildErr := backend.Build(ctx, project, api.BuildOptions{}); buildErr != nil {
 		return errors.Wrap(buildErr, "failed to build project")
 	}
