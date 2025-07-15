@@ -57,7 +57,6 @@ func DefaultDependencies() *Dependencies {
 		ProjectFromOptions: cli.ProjectFromOptions,
 		NewDockerClient: func() (*client.Client, error) {
 			return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-
 		},
 		NewDockerCli: func(apiClient client.APIClient) (*command.DockerCli, error) {
 			return command.NewDockerCli(command.WithAPIClient(apiClient))
