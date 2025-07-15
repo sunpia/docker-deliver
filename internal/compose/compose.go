@@ -158,6 +158,13 @@ func (c *Client) Build(ctx context.Context) error {
 		}
 	}
 
+	// Try to use the correct Docker host for Windows with Docker Desktop Linux engine
+	dockerHost := os.Getenv("DOCKER_HOST")
+	if os.Getenv("OS") == "Windows_NT" && dockerHost == "" {
+		// Set to Docker Desktop Linux engine if not already set
+		_ = os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
+		c.Logger.Debug("Set DOCKER_HOST to Docker Desktop Linux engine for Windows")
+	}
 	dockerClient, err := c.Deps.NewDockerClient()
 	if err != nil {
 		return err
@@ -167,12 +174,6 @@ func (c *Client) Build(ctx context.Context) error {
 	dockerCli, err := c.Deps.NewDockerCli(dockerClient)
 	if err != nil {
 		return err
-	}
-
-	if os.Getenv("OS") == "Windows_NT" {
-		c.Logger.Debug("Configuring Docker environment for Windows desktop-linux context")
-		_ = os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
-		_ = os.Setenv("DOCKER_BUILDKIT", "1") // Enable BuildKit for better performance
 	}
 
 	if initErr := dockerCli.Initialize(flags.NewClientOptions()); initErr != nil {
