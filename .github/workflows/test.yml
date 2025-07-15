@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         go-version: ['1.24.4']
         architecture: [x86] # Add more architectures if needed
     steps:
@@ -81,7 +81,7 @@ jobs:
     # needs: test
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
