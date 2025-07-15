@@ -159,12 +159,12 @@ func (c *Client) Build(ctx context.Context) error {
 	}
 
 	// Try to use the correct Docker host for Windows with Docker Desktop Linux engine
-	dockerHost := os.Getenv("DOCKER_HOST")
-	if os.Getenv("OS") == "Windows_NT" && dockerHost == "" {
-		// Set to Docker Desktop Linux engine if not already set
-		_ = os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
-		c.Logger.Debug("Set DOCKER_HOST to Docker Desktop Linux engine for Windows")
-	}
+	// dockerHost := os.Getenv("DOCKER_HOST")
+	// if os.Getenv("OS") == "Windows_NT" && dockerHost == "" {
+	// Set to Docker Desktop Linux engine if not already set
+	// 	_ = os.Setenv("DOCKER_HOST", "npipe:////./pipe/dockerDesktopLinuxEngine")
+	// 	c.Logger.Debug("Set DOCKER_HOST to Docker Desktop Linux engine for Windows")
+	// }
 	dockerClient, err := c.Deps.NewDockerClient()
 	if err != nil {
 		return err
