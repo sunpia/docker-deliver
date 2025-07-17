@@ -108,11 +108,15 @@ func NewComposeClientWithDeps(ctx context.Context, config Config, deps *Dependen
 
 // load loads the compose project from the provided config.
 func (c *Client) load(ctx context.Context) error {
-	project, err := c.Deps.ProjectFromOptions(ctx, &cli.ProjectOptions{
-		ConfigPaths: c.Config.DockerComposePath,
-		WorkingDir:  c.Config.WorkDir,
-		Environment: map[string]string{},
-	})
+	opts, err := cli.NewProjectOptions(
+		c.Config.DockerComposePath,
+		cli.WithOsEnv,
+		cli.WithWorkingDirectory(c.Config.WorkDir),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply OS environment variables")
+	}
+	project, err := c.Deps.ProjectFromOptions(ctx, opts)
 	if err != nil {
 		return err
 	}

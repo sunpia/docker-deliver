@@ -7,7 +7,7 @@ toolchain go1.24.4
 require (
 	github.com/compose-spec/compose-go/v2 v2.7.1
 	github.com/docker/cli v28.3.1+incompatible
-	github.com/docker/compose/v2 v2.38.1
+	github.com/docker/compose/v2 v2.38.2
 	github.com/docker/docker v28.3.1+incompatible
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
