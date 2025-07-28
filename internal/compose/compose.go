@@ -2,6 +2,7 @@ package compose
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,8 +14,10 @@ import (
 	"github.com/docker/compose/v2/pkg/api"
 	"github.com/docker/compose/v2/pkg/compose"
 	"github.com/docker/docker/client"
+	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	mcp_internal "github.com/sunpia/docker-deliver/internal/mcp"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,6 +35,7 @@ type Interface interface {
 	SaveImages(ctx context.Context) error
 	SaveComposeFile(ctx context.Context) (string, error)
 	Build(ctx context.Context) error
+	Run(ctx context.Context) (string, error)
 }
 
 // Dependencies holds all external dependencies for ComposeClient.
@@ -43,6 +47,23 @@ type Dependencies struct {
 	ProjectFromOptions func(context.Context, *cli.ProjectOptions) (*types.Project, error)
 	NewDockerClient    func() (*client.Client, error)
 	NewDockerCli       func(client.APIClient) (*command.DockerCli, error)
+}
+
+func (c *Client) Run(ctx context.Context) (string, error) {
+	if c.Project == nil {
+		return "", nil
+	}
+	if buildErr := c.Build(ctx); buildErr != nil {
+		return "", buildErr
+	}
+	if saveErr := c.SaveImages(ctx); saveErr != nil {
+		return "", saveErr
+	}
+	output, composeErr := c.SaveComposeFile(ctx)
+	if composeErr != nil {
+		return "", composeErr
+	}
+	return output, nil
 }
 
 // DefaultDependencies returns the default production dependencies.
@@ -68,10 +89,42 @@ func DefaultDependencies() *Dependencies {
 type Client struct {
 	Interface // Interface embedding
 
-	Config  Config
+	Config Config
+	mcp_internal.RegisterInterface
 	Project *types.Project
 	Logger  *logrus.Logger
 	Deps    *Dependencies
+}
+
+func DeliverProject(ctx context.Context, ss *mcp.ServerSession, params *mcp.CallToolParamsFor[Config]) (*mcp.CallToolResultFor[any], error) {
+
+	config := params.Arguments
+	client, err := NewComposeClientWithDeps(ctx, config, DefaultDependencies())
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := client.Run(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: fmt.Sprintf("The docker project has been successfully delivered to %s.",
+					output),
+			},
+		},
+	}, nil
+}
+
+type ComposeRegisterTool struct {
+	mcp_internal.RegisterInterface
+}
+
+func (ComposeRegisterTool) RegisterTool(name string, mServer *mcp.Server) error {
+	mcp.AddTool(mServer, &mcp.Tool{Name: "deliver_compose_project", Description: "Delivers the compose project and its image to a folder. Enable offline compose deliver"}, DeliverProject)
+	return nil
 }
 
 // NewComposeClient creates and initializes a ComposeClient.
@@ -243,4 +296,12 @@ func (c *Client) SaveImages(ctx context.Context) error {
 		c.Logger.Infof("Saved images to %s (%.2f GB)", outPath, sizeGB)
 	}
 	return nil
+}
+
+var _ Interface = (*Client)(nil)
+
+var _ mcp_internal.RegisterInterface = (*ComposeRegisterTool)(nil)
+
+func init() {
+	mcp_internal.RegisterService("compose", ComposeRegisterTool{})
 }
