@@ -1,13 +1,14 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 )
 
 // InstallApplication runs 'make install' to build the application.
-func InstallApplication() error {
-	cmd := exec.Command("make", "install")
+func InstallApplication(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "make", "install")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
@@ -16,8 +17,8 @@ func InstallApplication() error {
 	return nil
 }
 
-func BuildApplication() error {
-	cmd := exec.Command("make", "build")
+func BuildApplication(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "make", "build")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
@@ -26,8 +27,8 @@ func BuildApplication() error {
 	return nil
 }
 
-func ProjectRootPath() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+func ProjectRootPath(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get project root path: %w", err)

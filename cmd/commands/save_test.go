@@ -49,16 +49,14 @@ func TestNewSaveCmd(t *testing.T) {
 	tagFlag := cmd.Flag("tag")
 	if tagFlag == nil {
 		t.Fatal("Expected 'tag' flag to exist")
-	}
-	if tagFlag.DefValue != "latest" {
+	} else if tagFlag.DefValue != "latest" {
 		t.Errorf("Expected default tag to be 'latest', got '%s'", tagFlag.DefValue)
 	}
 
 	logLevelFlag := cmd.Flag("loglevel")
 	if logLevelFlag == nil {
 		t.Fatal("Expected 'loglevel' flag to exist")
-	}
-	if logLevelFlag.DefValue != "info" {
+	} else if logLevelFlag.DefValue != "info" {
 		t.Errorf("Expected default loglevel to be 'info', got '%s'", logLevelFlag.DefValue)
 	}
 }
@@ -164,32 +162,29 @@ func TestSaveCmd_FlagParsing(t *testing.T) {
 	outputFlag := cmd.Flag("output")
 	if outputFlag == nil {
 		t.Fatal("output flag not found")
-	}
-	if outputFlag.Value.String() != expectedOutputDir {
+	} else if outputFlag.Value.String() != expectedOutputDir {
 		t.Errorf("Expected output to be '%s', got '%s'", expectedOutputDir, outputFlag.Value.String())
 	}
 
 	workdirFlag := cmd.Flag("workdir")
 	if workdirFlag == nil {
 		t.Fatal("workdir flag not found")
-	}
-	if workdirFlag.Value.String() != expectedWorkDir {
+	} else if workdirFlag.Value.String() != expectedWorkDir {
 		t.Errorf("Expected workdir to be '%s', got '%s'", expectedWorkDir, workdirFlag.Value.String())
 	}
 
 	tagFlag := cmd.Flag("tag")
-	if tagFlag == nil {
-		t.Fatal("tag flag not found")
+	if tagFlag == nil || tagFlag.Value == nil {
+		t.Fatal("tag flag or its value is nil")
 	}
 	if tagFlag.Value.String() != "v1.0.0" {
 		t.Errorf("Expected tag to be 'v1.0.0', got '%s'", tagFlag.Value.String())
 	}
 
 	loglevelFlag := cmd.Flag("loglevel")
-	if loglevelFlag == nil {
-		t.Fatal("loglevel flag not found")
-	}
-	if loglevelFlag.Value.String() != "debug" {
+	if loglevelFlag == nil || loglevelFlag.Value == nil {
+		t.Fatal("loglevel flag or its value is nil")
+	} else if loglevelFlag.Value.String() != "debug" {
 		t.Errorf("Expected loglevel to be 'debug', got '%s'", loglevelFlag.Value.String())
 	}
 }
@@ -255,7 +250,12 @@ func TestSaveCmd_MultipleFiles(t *testing.T) {
 	}
 
 	// For StringSlice flags, the Value.String() returns the slice representation
-	fileValue := fileFlag.Value.String()
+	var fileValue string
+	if fileFlag != nil && fileFlag.Value != nil {
+		fileValue = fileFlag.Value.String()
+	} else {
+		t.Fatal("file flag value is nil")
+	}
 	expectedFiles := []string{"docker-compose.yml", "docker-compose.prod.yml", "docker-compose.override.yml"}
 
 	for _, expectedFile := range expectedFiles {

@@ -11,6 +11,7 @@ func newRootCmd() *cobra.Command {
 		Short: "Docker-deliver is a deployment tool",
 	}
 	rootCmd.AddCommand(commands.NewSaveCmd())
+	rootCmd.AddCommand(commands.NewMCPCmd())
 	return rootCmd
 }
 

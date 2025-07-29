@@ -15,6 +15,7 @@ A command-line tool for packaging and delivering Docker Compose projects. Docker
 - [Installation](#installation)
 - [Building from Source](#building-from-source)
 - [Usage](#usage)
+- [MCP (Model Context Protocol) Server](#mcp-model-context-protocol-server)
 - [Examples](#examples--benchmark)
 - [Configuration](#configuration)
 - [License](#license)
@@ -76,6 +77,58 @@ docker-deliver save [flags]
 - `-w, --workdir`: Working directory (default: current directory)
 - `-t, --tag`: Default tag for images (default: "latest")
 - `-l, --loglevel`: Log level - debug, info, warn, error (default: "info")
+
+## MCP (Model Context Protocol) Server
+
+Docker Deliver includes a built-in MCP server that exposes its functionality as tools for AI assistants and other MCP-compatible clients.
+
+### Starting the MCP Server
+
+```bash
+# Start MCP server with stdio transport (for AI assistants)
+docker-deliver mcp
+
+# Start MCP server with HTTP transport
+docker-deliver mcp --http :8080
+```
+
+### Available MCP Tools
+
+The MCP server exposes the following tools:
+
+#### `deliver_compose_project`
+
+Delivers a Docker Compose project and its images to a folder, enabling offline deployment.
+
+**Parameters:**
+- `docker_compose_path` (array): Paths to docker-compose file(s)
+- `work_dir` (string): Working directory
+- `output_dir` (string): Output directory for generated files
+- `tag` (string): Default tag for images
+- `loglevel` (string): Log level (debug, info, warn, error)
+
+**Example usage in MCP client:**
+```json
+{
+  "tool": "deliver_compose_project",
+  "arguments": {
+    "docker_compose_path": ["./docker-compose.yml"],
+    "work_dir": "/path/to/project",
+    "output_dir": "/path/to/output",
+    "tag": "latest",
+    "loglevel": "info"
+  }
+}
+```
+
+### Integration with AI Assistants
+
+The MCP server allows AI assistants to directly use Docker Deliver's functionality. Configure your AI assistant to connect to the MCP server and use the `deliver_compose_project` tool to package and prepare Docker Compose projects for deployment.
+
+### Server Transports
+
+- **Stdio Transport**: Default mode for AI assistant integration
+- **HTTP Transport**: Use `--http` flag to specify HTTP address for web-based integrations
 
 ## Examples & Benchmark
 

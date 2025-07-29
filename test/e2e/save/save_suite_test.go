@@ -1,6 +1,7 @@
 package savee2e_test
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"testing"
@@ -18,35 +19,38 @@ func TestSave(t *testing.T) {
 var _ = ginkgo.Describe("Compile Pkg", func() {
 	ginkgo.BeforeEach(func() {
 		// Jump to the project root directory
-		projectRoot, err := e2e.ProjectRootPath()
+		ctx := context.Background()
+		projectRoot, err := e2e.ProjectRootPath(ctx)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		err = os.Chdir(projectRoot)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	})
 
 	ginkgo.It("should install the CLI binary", func() {
-		_ = e2e.InstallApplication() // Ignoring error for test setup
-		cmd := exec.Command("docker-deliver", "--help")
+		ctx := context.Background()
+		_ = e2e.InstallApplication(ctx) // Ignoring error for test setup
+		cmd := exec.CommandContext(ctx, "docker-deliver", "--help")
 		output, err := cmd.CombinedOutput()
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to execute 'docker-deliver --help'")
 		gomega.Expect(string(output)).To(gomega.ContainSubstring("Usage"), "output should contain 'Usage'")
 	})
 
 	ginkgo.It("should save images and generate docker-compose file", func() {
+		ctx := context.Background()
 		outputDir := "tmp"
 		_ = os.RemoveAll(outputDir)
 		err := os.MkdirAll(outputDir, 0750)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to create output directory")
 
 		// Get git hash for tag
-		gitHashCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+		gitHashCmd := exec.CommandContext(ctx, "git", "rev-parse", "--short", "HEAD")
 		gitHashBytes, err := gitHashCmd.Output()
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to get git hash")
 		gitHash := string(gitHashBytes)
 		gitHash = string([]byte(gitHash)[:len(gitHash)-1]) // remove trailing newline
 
 		// Run the docker-deliver save command
-		cmd := exec.Command(
+		cmd := exec.CommandContext(ctx,
 			"docker-deliver", "save",
 			"-f", "example/docker-compose.base.yaml",
 			"-f", "example/docker-compose.extend.yaml",
@@ -70,7 +74,7 @@ var _ = ginkgo.Describe("Compile Pkg", func() {
 			"docker-compose.generated.yaml should not be empty")
 
 		// Run docker compose down to clean up any previous resources
-		downCmd := exec.Command(
+		downCmd := exec.CommandContext(ctx,
 			"docker", "compose",
 			"-f", composePath,
 			"down", "--rmi", "all",
@@ -78,7 +82,7 @@ var _ = ginkgo.Describe("Compile Pkg", func() {
 		downOutput, err := downCmd.CombinedOutput()
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to run docker compose down: %s", string(downOutput))
 
-		upCmd := exec.Command(
+		upCmd := exec.CommandContext(ctx,
 			"docker", "compose",
 			"-f", composePath,
 			"up", "-d",
@@ -90,15 +94,15 @@ var _ = ginkgo.Describe("Compile Pkg", func() {
 		// Load images.tar using appropriate docker load command based on OS
 		var loadCmd *exec.Cmd
 		if os.Getenv("OS") == "Windows_NT" {
-			loadCmd = exec.Command("docker", "load", "-i", imagesTarPath)
+			loadCmd = exec.CommandContext(ctx, "docker", "load", "-i", imagesTarPath)
 		} else {
-			loadCmd = exec.Command("sh", "-c", "docker load < "+imagesTarPath)
+			loadCmd = exec.CommandContext(ctx, "sh", "-c", "docker load < "+imagesTarPath)
 		}
 		loadOutput, err := loadCmd.CombinedOutput()
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "failed to load images: %s", string(loadOutput))
 		gomega.Expect(string(loadOutput)).To(gomega.ContainSubstring("Loaded image"),
 			"docker load output should mention loaded image")
-		upCmd = exec.Command(
+		upCmd = exec.CommandContext(ctx,
 			"docker", "compose",
 			"-f", composePath,
 			"up", "-d",
@@ -107,7 +111,7 @@ var _ = ginkgo.Describe("Compile Pkg", func() {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(),
 			"docker compose up should succeed after images are loaded: %s", string(upOutput))
 
-		downCmd = exec.Command(
+		downCmd = exec.CommandContext(ctx,
 			"docker", "compose",
 			"-f", composePath,
 			"down", "--rmi", "all",
