@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/cli"
@@ -15,6 +14,8 @@ import (
 	"github.com/docker/compose/v2/pkg/compose"
 	"github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
 	Compose "github.com/sunpia/docker-deliver/internal/compose"
@@ -47,15 +48,9 @@ func setupTestDependencies() *Compose.Dependencies {
 // Simple test to verify the default dependencies work.
 func TestDefaultDependencies(t *testing.T) {
 	deps := Compose.DefaultDependencies()
-	if deps.OSCreate == nil {
-		t.Error("OSCreate should not be nil")
-	}
-	if deps.OSMkdirAll == nil {
-		t.Error("OSMkdirAll should not be nil")
-	}
-	if deps.YAMLMarshal == nil {
-		t.Error("YAMLMarshal should not be nil")
-	}
+	assert.NotNil(t, deps.OSCreate, "OSCreate should not be nil")
+	assert.NotNil(t, deps.OSMkdirAll, "OSMkdirAll should not be nil")
+	assert.NotNil(t, deps.YAMLMarshal, "YAMLMarshal should not be nil")
 }
 
 func TestNewComposeClient_InvalidLogLevel(t *testing.T) {
@@ -72,12 +67,8 @@ func TestNewComposeClient_InvalidLogLevel(t *testing.T) {
 
 	client, err := Compose.NewComposeClient(context.Background(), config)
 
-	if err == nil {
-		t.Fatal("Expected error for invalid log level")
-	}
-	if client != nil {
-		t.Fatal("Expected client to be nil on error")
-	}
+	assert.Error(t, err, "Expected error for invalid log level")
+	assert.Nil(t, client, "Expected client to be nil on error")
 }
 
 func TestNewComposeClient_LoadError(t *testing.T) {
@@ -99,15 +90,9 @@ func TestNewComposeClient_LoadError(t *testing.T) {
 
 	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
-	if err == nil {
-		t.Fatal("Expected error from project loading")
-	}
-	if client != nil {
-		t.Fatal("Expected client to be nil on error")
-	}
-	if !strings.Contains(err.Error(), "failed to load project") {
-		t.Errorf("Expected error to contain 'failed to load project', got: %v", err)
-	}
+	assert.Error(t, err, "Expected error from project loading")
+	assert.Nil(t, client, "Expected client to be nil on error")
+	assert.Contains(t, err.Error(), "failed to load project")
 }
 
 func TestNewComposeClient_CreateOutputDirError(t *testing.T) {
@@ -135,15 +120,9 @@ func TestNewComposeClient_CreateOutputDirError(t *testing.T) {
 
 	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
-	if err == nil {
-		t.Fatal("Expected error from mkdir")
-	}
-	if client != nil {
-		t.Fatal("Expected client to be nil on error")
-	}
-	if !strings.Contains(err.Error(), "permission denied") {
-		t.Errorf("Expected error to contain 'permission denied', got: %v", err)
-	}
+	assert.Error(t, err, "Expected error from mkdir")
+	assert.Nil(t, client, "Expected client to be nil on error")
+	assert.Contains(t, err.Error(), "permission denied")
 }
 
 func TestSaveComposeFile_Success(t *testing.T) {
@@ -162,9 +141,7 @@ func TestSaveComposeFile_Success(t *testing.T) {
 	deps := setupTestDependencies()
 	deps.OSCreate = func(name string) (*os.File, error) {
 		expectedPath := filepath.Join(tempDir, "docker-compose.generated.yaml")
-		if name != expectedPath {
-			t.Errorf("Expected file path %s, got %s", expectedPath, name)
-		}
+		assert.Equal(t, expectedPath, name, "Expected file path to match")
 		return os.Create(name)
 	}
 
@@ -182,19 +159,12 @@ func TestSaveComposeFile_Success(t *testing.T) {
 	}
 
 	_, err := client.SaveComposeFile(context.Background())
-
-	if err != nil {
-		t.Fatalf("Expected no error, got: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Verify file was created and content written
 	content, err := os.ReadFile(filepath.Join(tempDir, "docker-compose.generated.yaml"))
-	if err != nil {
-		t.Fatalf("Failed to read generated file: %v", err)
-	}
-	if string(content) != "test yaml content" {
-		t.Errorf("Expected content 'test yaml content', got '%s'", string(content))
-	}
+	require.NoError(t, err, "Failed to read generated file")
+	assert.Equal(t, "test yaml content", string(content))
 }
 
 func TestSaveComposeFile_NilProject(t *testing.T) {
@@ -209,10 +179,7 @@ func TestSaveComposeFile_NilProject(t *testing.T) {
 	}
 
 	_, err := client.SaveComposeFile(context.Background())
-
-	if err != nil {
-		t.Errorf("Expected no error for nil project, got: %v", err)
-	}
+	assert.NoError(t, err, "Expected no error for nil project")
 }
 
 func TestSaveComposeFile_CreateFileError(t *testing.T) {
@@ -232,12 +199,8 @@ func TestSaveComposeFile_CreateFileError(t *testing.T) {
 
 	_, err := client.SaveComposeFile(context.Background())
 
-	if err == nil {
-		t.Fatal("Expected error from file creation")
-	}
-	if !strings.Contains(err.Error(), "file creation failed") {
-		t.Errorf("Expected error to contain 'file creation failed', got: %v", err)
-	}
+	assert.Error(t, err, "Expected error from file creation")
+	assert.Contains(t, err.Error(), "file creation failed")
 }
 
 func TestSaveComposeFile_MarshalError(t *testing.T) {
@@ -260,12 +223,8 @@ func TestSaveComposeFile_MarshalError(t *testing.T) {
 
 	_, err := client.SaveComposeFile(context.Background())
 
-	if err == nil {
-		t.Fatal("Expected error from yaml marshal")
-	}
-	if !strings.Contains(err.Error(), "marshal failed") {
-		t.Errorf("Expected error to contain 'marshal failed', got: %v", err)
-	}
+	assert.Error(t, err, "Expected error from yaml marshal")
+	assert.Contains(t, err.Error(), "marshal failed")
 }
 
 func TestBuild_NilProject(t *testing.T) {
@@ -277,10 +236,7 @@ func TestBuild_NilProject(t *testing.T) {
 	}
 
 	err := client.Build(context.Background())
-
-	if err != nil {
-		t.Errorf("Expected no error for nil project, got: %v", err)
-	}
+	assert.NoError(t, err, "Expected no error for nil project")
 }
 
 func TestBuild_DockerClientError(t *testing.T) {
@@ -300,12 +256,8 @@ func TestBuild_DockerClientError(t *testing.T) {
 
 	err := client.Build(context.Background())
 
-	if err == nil {
-		t.Fatal("Expected error from docker client creation")
-	}
-	if !strings.Contains(err.Error(), "docker client creation failed") {
-		t.Errorf("Expected error to contain 'docker client creation failed', got: %v", err)
-	}
+	assert.Error(t, err, "Expected error from docker client creation")
+	assert.Contains(t, err.Error(), "docker client creation failed")
 }
 
 func TestSaveImages_DockerClientError(t *testing.T) {
@@ -332,12 +284,8 @@ func TestSaveImages_DockerClientError(t *testing.T) {
 
 	err := client.SaveImages(context.Background())
 
-	if err == nil {
-		t.Fatal("Expected error from docker client creation")
-	}
-	if !strings.Contains(err.Error(), "docker client creation failed") {
-		t.Errorf("Expected error to contain 'docker client creation failed', got: %v", err)
-	}
+	assert.Error(t, err, "Expected error from docker client creation")
+	assert.Contains(t, err.Error(), "docker client creation failed")
 }
 
 func TestBuild_ServiceImageTagging(t *testing.T) {
@@ -374,12 +322,8 @@ func TestBuild_ServiceImageTagging(t *testing.T) {
 	}
 
 	// Verify tagging worked correctly
-	if project.Services["web"].Image != "web:v1.0.0" {
-		t.Errorf("Expected web service image to be 'web:v1.0.0', got '%s'", project.Services["web"].Image)
-	}
-	if project.Services["db"].Image != "postgres:13" {
-		t.Errorf("Expected db service image to remain 'postgres:13', got '%s'", project.Services["db"].Image)
-	}
+	assert.Equal(t, "web:v1.0.0", project.Services["web"].Image, "Expected web service image to be 'web:v1.0.0'")
+	assert.Equal(t, "postgres:13", project.Services["db"].Image, "Expected db service image to remain 'postgres:13'")
 }
 
 func TestSaveImages_NoImagesSpecified(t *testing.T) {
@@ -407,9 +351,7 @@ func TestSaveImages_NoImagesSpecified(t *testing.T) {
 		}
 	}
 
-	if len(images) != 0 {
-		t.Errorf("Expected no images to be collected, got %v", images)
-	}
+	assert.Empty(t, images, "Expected no images to be collected")
 }
 
 func TestSaveImages_ImageCollection(t *testing.T) {
@@ -446,9 +388,7 @@ func TestSaveImages_ImageCollection(t *testing.T) {
 	}
 
 	expectedImages := []string{"nginx:latest", "postgres:13"}
-	if len(images) != len(expectedImages) {
-		t.Errorf("Expected %d images, got %d", len(expectedImages), len(images))
-	}
+	assert.Len(t, images, len(expectedImages), "Expected same number of images")
 
 	// Check if all expected images are present
 	imageMap := make(map[string]bool)
@@ -457,9 +397,7 @@ func TestSaveImages_ImageCollection(t *testing.T) {
 	}
 
 	for _, expected := range expectedImages {
-		if !imageMap[expected] {
-			t.Errorf("Expected image %s not found in collected images", expected)
-		}
+		assert.True(t, imageMap[expected], "Expected image %s not found in collected images", expected)
 	}
 }
 
@@ -494,10 +432,7 @@ func TestSaveComposeFile_WriteError(t *testing.T) {
 	}
 
 	_, err := client.SaveComposeFile(context.Background())
-
-	if err == nil {
-		t.Fatal("Expected error from file write")
-	}
+	assert.Error(t, err, "Expected error from file write")
 }
 
 func TestBuild_WithExistingImages(t *testing.T) {
@@ -532,12 +467,8 @@ func TestBuild_WithExistingImages(t *testing.T) {
 	}
 
 	// Verify only services without images got tagged
-	if project.Services["web"].Image != "existing:latest" {
-		t.Errorf("Expected web service image to remain 'existing:latest', got '%s'", project.Services["web"].Image)
-	}
-	if project.Services["api"].Image != "api:v2.0.0" {
-		t.Errorf("Expected api service image to be 'api:v2.0.0', got '%s'", project.Services["api"].Image)
-	}
+	assert.Equal(t, "existing:latest", project.Services["web"].Image, "Expected web service image to remain 'existing:latest'")
+	assert.Equal(t, "api:v2.0.0", project.Services["api"].Image, "Expected api service image to be 'api:v2.0.0'")
 }
 
 func TestBuild_BuildConfigRemoval(t *testing.T) {
@@ -574,12 +505,8 @@ func TestBuild_BuildConfigRemoval(t *testing.T) {
 	}
 
 	// Verify build config was removed
-	if project.Services["web"].Build != nil {
-		t.Error("Expected web service build config to be removed")
-	}
-	if project.Services["db"].Build != nil {
-		t.Error("Expected db service build config to remain nil")
-	}
+	assert.Nil(t, project.Services["web"].Build, "Expected web service build config to be removed")
+	assert.Nil(t, project.Services["db"].Build, "Expected db service build config to remain nil")
 }
 
 func TestNewComposeClient_OutputDirExists(t *testing.T) {
@@ -589,9 +516,7 @@ func TestNewComposeClient_OutputDirExists(t *testing.T) {
 	existingDir := filepath.Join(tempDir, "existing")
 	const testDirPermissions = 0750 // More restrictive permissions for test
 	err := os.MkdirAll(existingDir, testDirPermissions)
-	if err != nil {
-		t.Fatalf("Failed to create existing directory: %v", err)
-	}
+	require.NoError(t, err, "Failed to create existing directory")
 
 	// Create mock dependencies
 	deps := setupTestDependencies()
@@ -610,12 +535,8 @@ func TestNewComposeClient_OutputDirExists(t *testing.T) {
 
 	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
-	if err != nil {
-		t.Fatalf("Expected no error when output directory exists, got: %v", err)
-	}
-	if client == nil {
-		t.Fatal("Expected client to be not nil")
-	}
+	assert.NoError(t, err, "Expected no error when output directory exists")
+	assert.NotNil(t, client, "Expected client to be not nil")
 }
 
 func TestSaveImages_EmptyImagesList(t *testing.T) {
@@ -643,9 +564,7 @@ func TestSaveImages_EmptyImagesList(t *testing.T) {
 		}
 	}
 
-	if len(images) != 0 {
-		t.Errorf("Expected no images to be collected, got %v", images)
-	}
+	assert.Empty(t, images, "Expected no images to be collected")
 
 	// The actual SaveImages call would return early without Docker operations
 	// when no images are found, so we'll just test the collection logic here

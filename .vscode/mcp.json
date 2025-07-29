@@ -1,0 +1,12 @@
+{
+	"servers": {
+		"docker-deliver-mcp": {
+			"type": "stdio",
+			"command": "docker-deliver",
+			"args": [
+				"mcp"
+			]
+		}
+	},
+	"inputs": []
+}
