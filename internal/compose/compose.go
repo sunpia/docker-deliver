@@ -49,23 +49,6 @@ type Dependencies struct {
 	NewDockerCli       func(client.APIClient) (*command.DockerCli, error)
 }
 
-func (c *Client) Run(ctx context.Context) (string, error) {
-	if c.Project == nil {
-		return "", nil
-	}
-	if buildErr := c.Build(ctx); buildErr != nil {
-		return "", buildErr
-	}
-	if saveErr := c.SaveImages(ctx); saveErr != nil {
-		return "", saveErr
-	}
-	output, composeErr := c.SaveComposeFile(ctx)
-	if composeErr != nil {
-		return "", composeErr
-	}
-	return output, nil
-}
-
 // DefaultDependencies returns the default production dependencies.
 func DefaultDependencies() *Dependencies {
 	return &Dependencies{
@@ -88,16 +71,19 @@ func DefaultDependencies() *Dependencies {
 // Client implements ComposeInterface and holds project state.
 type Client struct {
 	Interface // Interface embedding
-
-	Config Config
 	mcp_internal.RegisterInterface
+
+	Config  Config
 	Project *types.Project
 	Logger  *logrus.Logger
 	Deps    *Dependencies
 }
 
-func DeliverProject(ctx context.Context, ss *mcp.ServerSession, params *mcp.CallToolParamsFor[Config]) (*mcp.CallToolResultFor[any], error) {
-
+func DeliverProject(
+	ctx context.Context,
+	_ *mcp.ServerSession,
+	params *mcp.CallToolParamsFor[Config],
+) (*mcp.CallToolResultFor[any], error) {
 	config := params.Arguments
 	client, err := NewComposeClientWithDeps(ctx, config, DefaultDependencies())
 	if err != nil {
@@ -118,12 +104,15 @@ func DeliverProject(ctx context.Context, ss *mcp.ServerSession, params *mcp.Call
 	}, nil
 }
 
-type ComposeRegisterTool struct {
+type RegisterTool struct {
 	mcp_internal.RegisterInterface
 }
 
-func (ComposeRegisterTool) RegisterTool(name string, mServer *mcp.Server) error {
-	mcp.AddTool(mServer, &mcp.Tool{Name: "deliver_compose_project", Description: "Delivers the compose project and its image to a folder. Enable offline compose deliver"}, DeliverProject)
+func (RegisterTool) RegisterTool(_ string, mServer *mcp.Server) error {
+	mcp.AddTool(mServer, &mcp.Tool{
+		Name:        "deliver_compose_project",
+		Description: "Delivers the compose project and its image to a folder. Enable offline compose deliver",
+	}, DeliverProject)
 	return nil
 }
 
@@ -298,10 +287,30 @@ func (c *Client) SaveImages(ctx context.Context) error {
 	return nil
 }
 
+func (c *Client) Run(ctx context.Context) (string, error) {
+	if c.Project == nil {
+		return "", nil
+	}
+	if buildErr := c.Build(ctx); buildErr != nil {
+		return "", buildErr
+	}
+	if saveErr := c.SaveImages(ctx); saveErr != nil {
+		return "", saveErr
+	}
+	output, composeErr := c.SaveComposeFile(ctx)
+	if composeErr != nil {
+		return "", composeErr
+	}
+	return output, nil
+}
+
 var _ Interface = (*Client)(nil)
 
-var _ mcp_internal.RegisterInterface = (*ComposeRegisterTool)(nil)
+var _ mcp_internal.RegisterInterface = (*RegisterTool)(nil)
 
+// RegisterComposeService registers the compose service with the MCP registry.
 func init() {
-	mcp_internal.RegisterService("compose", ComposeRegisterTool{})
+	if err := mcp_internal.RegisterService("compose", RegisterTool{}); err != nil {
+		logrus.Errorf("Failed to register compose service: %v", err)
+	}
 }

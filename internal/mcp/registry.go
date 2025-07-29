@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -18,17 +19,20 @@ type ServiceRegistry struct {
 	services map[string]RegisterInterface
 }
 
-var (
-	globalRegistry *ServiceRegistry
-	once           sync.Once
-)
+// registryInstance holds the singleton instance.
+type registryInstance struct {
+	registry *ServiceRegistry
+	once     sync.Once
+}
+
+var instance registryInstance
 
 // GetServiceRegistry returns the global service registry instance (singleton).
 func GetServiceRegistry() *ServiceRegistry {
-	once.Do(func() {
-		globalRegistry = NewServiceRegistry()
+	instance.once.Do(func() {
+		instance.registry = NewServiceRegistry()
 	})
-	return globalRegistry
+	return instance.registry
 }
 
 // NewServiceRegistry creates a new service registry.
@@ -42,10 +46,10 @@ func NewServiceRegistry() *ServiceRegistry {
 // Returns an error if a service with the same name is already registered.
 func (r *ServiceRegistry) RegisterService(name string, service RegisterInterface) error {
 	if name == "" {
-		return fmt.Errorf("service name cannot be empty")
+		return errors.New("service name cannot be empty")
 	}
 	if service == nil {
-		return fmt.Errorf("service cannot be nil")
+		return errors.New("service cannot be nil")
 	}
 
 	r.mu.Lock()

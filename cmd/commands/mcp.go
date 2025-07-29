@@ -14,7 +14,7 @@ func NewMCPCmd() *cobra.Command {
 		Short: "Start a mcp server",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			config := mcp.Config{
-				HttpAddr: httpAddr,
+				HTTPAddr: httpAddr,
 			}
 			ctx := cmd.Context()
 

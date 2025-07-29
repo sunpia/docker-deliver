@@ -1,4 +1,4 @@
-package mcp
+package mcp_test
 
 import (
 	"fmt"
@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	mcp_internal "github.com/sunpia/docker-deliver/internal/mcp"
 )
 
 // MockService implements RegisterInterface for testing.
@@ -22,20 +24,18 @@ func (m *MockService) RegisterTool(name string, mServer *mcp.Server) error {
 }
 
 func TestNewServiceRegistry(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	assert.NotNil(t, registry)
-	assert.NotNil(t, registry.services)
-	assert.Equal(t, 0, len(registry.services))
+	assert.Equal(t, 0, registry.Count())
 }
 
 func TestGetServiceRegistry(t *testing.T) {
-	// Reset the singleton for testing
-	once = sync.Once{}
-	globalRegistry = nil
+	// Note: Cannot reset the singleton from external package
+	// This test verifies that GetServiceRegistry returns the same instance
 
-	registry1 := GetServiceRegistry()
-	registry2 := GetServiceRegistry()
+	registry1 := mcp_internal.GetServiceRegistry()
+	registry2 := mcp_internal.GetServiceRegistry()
 
 	// Should return the same instance (singleton)
 	assert.Same(t, registry1, registry2)
@@ -46,7 +46,7 @@ func TestServiceRegistry_RegisterService(t *testing.T) {
 	tests := []struct {
 		name        string
 		serviceName string
-		service     RegisterInterface
+		service     mcp_internal.RegisterInterface
 		wantErr     bool
 		errorMsg    string
 	}{
@@ -74,17 +74,17 @@ func TestServiceRegistry_RegisterService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			registry := NewServiceRegistry()
+			registry := mcp_internal.NewServiceRegistry()
 
 			err := registry.RegisterService(tt.serviceName, tt.service)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorMsg != "" {
 					assert.Contains(t, err.Error(), tt.errorMsg)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				// Verify the service was actually registered
 				service, exists := registry.GetService(tt.serviceName)
 				assert.True(t, exists)
@@ -95,7 +95,7 @@ func TestServiceRegistry_RegisterService(t *testing.T) {
 }
 
 func TestServiceRegistry_RegisterService_DuplicateName(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 	service1 := &MockService{}
 	service2 := &MockService{}
 
@@ -105,7 +105,7 @@ func TestServiceRegistry_RegisterService_DuplicateName(t *testing.T) {
 
 	// Try to register second service with same name
 	err = registry.RegisterService("duplicate", service2)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "service duplicate already registered")
 
 	// Verify original service is still there
@@ -115,7 +115,7 @@ func TestServiceRegistry_RegisterService_DuplicateName(t *testing.T) {
 }
 
 func TestServiceRegistry_UnregisterService(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 	service := &MockService{}
 
 	// Register a service
@@ -124,7 +124,7 @@ func TestServiceRegistry_UnregisterService(t *testing.T) {
 
 	// Unregister the service
 	err = registry.UnregisterService("test-service")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify service is no longer there
 	_, exists := registry.GetService("test-service")
@@ -132,15 +132,15 @@ func TestServiceRegistry_UnregisterService(t *testing.T) {
 }
 
 func TestServiceRegistry_UnregisterService_NotFound(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	err := registry.UnregisterService("non-existent")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "service non-existent not found")
 }
 
 func TestServiceRegistry_GetService(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 	service := &MockService{}
 
 	// Test getting non-existent service
@@ -158,14 +158,14 @@ func TestServiceRegistry_GetService(t *testing.T) {
 }
 
 func TestServiceRegistry_GetServices(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 	service1 := &MockService{}
 	service2 := &MockService{}
 
 	// Test empty registry
 	services := registry.GetServices()
 	assert.NotNil(t, services)
-	assert.Equal(t, 0, len(services))
+	assert.Empty(t, services)
 
 	// Register services
 	err := registry.RegisterService("service1", service1)
@@ -175,25 +175,25 @@ func TestServiceRegistry_GetServices(t *testing.T) {
 
 	// Get all services
 	services = registry.GetServices()
-	assert.Equal(t, 2, len(services))
+	assert.Len(t, services, 2)
 	assert.Same(t, service1, services["service1"])
 	assert.Same(t, service2, services["service2"])
 
 	// Verify it returns a copy (external modification doesn't affect internal state)
 	services["service3"] = &MockService{}
 	internalServices := registry.GetServices()
-	assert.Equal(t, 2, len(internalServices))
+	assert.Len(t, internalServices, 2)
 	_, exists := internalServices["service3"]
 	assert.False(t, exists)
 }
 
 func TestServiceRegistry_ListServiceNames(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	// Test empty registry
 	names := registry.ListServiceNames()
 	assert.NotNil(t, names)
-	assert.Equal(t, 0, len(names))
+	assert.Empty(t, names)
 
 	// Register services
 	err := registry.RegisterService("service1", &MockService{})
@@ -203,13 +203,13 @@ func TestServiceRegistry_ListServiceNames(t *testing.T) {
 
 	// Get names
 	names = registry.ListServiceNames()
-	assert.Equal(t, 2, len(names))
+	assert.Len(t, names, 2)
 	assert.Contains(t, names, "service1")
 	assert.Contains(t, names, "service2")
 }
 
 func TestServiceRegistry_Count(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	// Test empty registry
 	assert.Equal(t, 0, registry.Count())
@@ -230,7 +230,7 @@ func TestServiceRegistry_Count(t *testing.T) {
 }
 
 func TestServiceRegistry_Clear(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	// Register services
 	err := registry.RegisterService("service1", &MockService{})
@@ -252,16 +252,15 @@ func TestServiceRegistry_Clear(t *testing.T) {
 }
 
 func TestGlobalRegisterService(t *testing.T) {
-	// Reset the global registry for testing
-	once = sync.Once{}
-	globalRegistry = nil
+	// Note: Cannot reset the global registry from external package
+	// This test verifies that RegisterService works with the global registry
 
 	service := &MockService{}
-	err := RegisterService("global-test", service)
-	assert.NoError(t, err)
+	err := mcp_internal.RegisterService("global-test", service)
+	require.NoError(t, err)
 
 	// Verify it was registered in the global registry
-	registry := GetServiceRegistry()
+	registry := mcp_internal.GetServiceRegistry()
 	retrievedService, exists := registry.GetService("global-test")
 	assert.True(t, exists)
 	assert.Same(t, service, retrievedService)
@@ -269,7 +268,7 @@ func TestGlobalRegisterService(t *testing.T) {
 
 // TestServiceRegistry_ConcurrentAccess tests thread safety of the registry.
 func TestServiceRegistry_ConcurrentAccess(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 	const numGoroutines = 100
 	const numOperations = 10
 
@@ -277,12 +276,12 @@ func TestServiceRegistry_ConcurrentAccess(t *testing.T) {
 	errors := make(chan error, numGoroutines*numOperations)
 
 	// Start multiple goroutines performing concurrent operations
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
 
-			for j := 0; j < numOperations; j++ {
+			for j := range numOperations {
 				serviceName := fmt.Sprintf("service-%d-%d", id, j)
 				service := &MockService{}
 
@@ -326,7 +325,7 @@ func TestServiceRegistry_ConcurrentAccess(t *testing.T) {
 
 // TestServiceRegistry_RealScenario tests a more realistic scenario.
 func TestServiceRegistry_RealScenario(t *testing.T) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	// Create mock services that simulate real behavior
 	composeService := &MockService{}
@@ -346,13 +345,13 @@ func TestServiceRegistry_RealScenario(t *testing.T) {
 
 	// Simulate server setup process
 	services := registry.GetServices()
-	assert.Equal(t, 2, len(services))
+	assert.Len(t, services, 2)
 
 	// Simulate registering tools with an MCP server
 	mcpServer := &mcp.Server{} // This would normally be properly initialized
 	for name, service := range services {
-		err := service.RegisterTool("test-addr", mcpServer)
-		assert.NoError(t, err)
+		regErr := service.RegisterTool("test-addr", mcpServer)
+		require.NoError(t, regErr)
 		t.Logf("Registered service: %s", name)
 	}
 

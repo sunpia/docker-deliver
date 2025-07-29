@@ -19,7 +19,7 @@ type ServerInterface interface {
 
 // Config holds the configuration for the MCP client.
 type Config struct {
-	HttpAddr        string        `json:"http_addr"`
+	HTTPAddr        string        `json:"http_addr"`
 	ServerName      string        `json:"server_name"`
 	ServerVersion   string        `json:"server_version"`
 	ShutdownTimeout time.Duration `json:"shutdown_timeout"`
@@ -29,15 +29,16 @@ type Config struct {
 // Client represents an MCP server client that manages service registration and server lifecycle.
 type Client struct {
 	ServerInterface
-	config   Config
-	logger   *logrus.Logger
-	server   *mcp.Server
-	httpSrv  *http.Server
-	registry *ServiceRegistry
+
+	Config   Config
+	Logger   *logrus.Logger
+	Server   *mcp.Server
+	HTTPSrv  *http.Server
+	Registry *ServiceRegistry
 }
 
 // NewClient creates a new MCP client with the provided configuration.
-func NewClient(ctx context.Context, config Config) (*Client, error) {
+func NewClient(_ context.Context, config Config) (*Client, error) {
 	if err := validateConfig(config); err != nil {
 		return nil, err
 	}
@@ -55,13 +56,14 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 		config.ServerVersion = "v1.0.0"
 	}
 	if config.ShutdownTimeout == 0 {
-		config.ShutdownTimeout = 30 * time.Second
+		const defaultShutdownTimeout = 30 * time.Second
+		config.ShutdownTimeout = defaultShutdownTimeout
 	}
 
 	return &Client{
-		config:   config,
-		logger:   logger,
-		registry: GetServiceRegistry(),
+		Config:   config,
+		Logger:   logger,
+		Registry: GetServiceRegistry(),
 	}, nil
 }
 
@@ -77,7 +79,7 @@ func (c *Client) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to setup server: %w", err)
 	}
 
-	if c.config.HttpAddr != "" {
+	if c.Config.HTTPAddr != "" {
 		return c.runHTTPServer(ctx)
 	}
 	return c.runStdioServer(ctx)
@@ -85,41 +87,43 @@ func (c *Client) Run(ctx context.Context) error {
 
 // setupServer creates and configures the MCP server with registered services.
 func (c *Client) setupServer() error {
-	c.server = mcp.NewServer(&mcp.Implementation{
-		Name:    c.config.ServerName,
-		Version: c.config.ServerVersion,
+	c.Server = mcp.NewServer(&mcp.Implementation{
+		Name:    c.Config.ServerName,
+		Version: c.Config.ServerVersion,
 	}, nil)
 
 	// Register all services from the registry
-	services := c.registry.GetServices()
+	services := c.Registry.GetServices()
 	for name, service := range services {
-		c.logger.Infof("Registering service: %s", name)
-		if err := service.RegisterTool(c.config.HttpAddr, c.server); err != nil {
+		c.Logger.Infof("Registering service: %s", name)
+		if err := service.RegisterTool(c.Config.HTTPAddr, c.Server); err != nil {
 			return fmt.Errorf("failed to register service %s: %w", name, err)
 		}
 	}
 
-	c.logger.Infof("Successfully registered %d services", len(services))
+	c.Logger.Infof("Successfully registered %d services", len(services))
 	return nil
 }
 
 // runHTTPServer starts the MCP server with HTTP transport.
 func (c *Client) runHTTPServer(ctx context.Context) error {
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
-		return c.server
+		return c.Server
 	}, nil)
 
-	c.httpSrv = &http.Server{
-		Addr:    c.config.HttpAddr,
-		Handler: handler,
+	const readHeaderTimeout = 10 * time.Second
+	c.HTTPSrv = &http.Server{
+		Addr:              c.Config.HTTPAddr,
+		Handler:           handler,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	c.logger.Infof("MCP handler listening at %s", c.config.HttpAddr)
+	c.Logger.Infof("MCP handler listening at %s", c.Config.HTTPAddr)
 
 	// Start server in a goroutine
 	errChan := make(chan error, 1)
 	go func() {
-		if err := c.httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := c.HTTPSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errChan <- fmt.Errorf("HTTP server failed: %w", err)
 		}
 	}()
@@ -127,7 +131,7 @@ func (c *Client) runHTTPServer(ctx context.Context) error {
 	// Wait for context cancellation or server error
 	select {
 	case <-ctx.Done():
-		c.logger.Info("Shutting down HTTP server...")
+		c.Logger.Info("Shutting down HTTP server...")
 		return c.Shutdown(context.Background())
 	case err := <-errChan:
 		return err
@@ -136,16 +140,16 @@ func (c *Client) runHTTPServer(ctx context.Context) error {
 
 // runStdioServer starts the MCP server with stdio transport.
 func (c *Client) runStdioServer(ctx context.Context) error {
-	c.logger.Info("Running MCP server with stdio transport")
+	c.Logger.Info("Running MCP server with stdio transport")
 	transport := mcp.NewStdioTransport()
 
-	if c.config.EnableStdioLogs {
+	if c.Config.EnableStdioLogs {
 		loggingTransport := mcp.NewLoggingTransport(transport, os.Stderr)
-		if err := c.server.Run(ctx, loggingTransport); err != nil {
+		if err := c.Server.Run(ctx, loggingTransport); err != nil {
 			return fmt.Errorf("stdio server with logging failed: %w", err)
 		}
 	} else {
-		if err := c.server.Run(ctx, transport); err != nil {
+		if err := c.Server.Run(ctx, transport); err != nil {
 			return fmt.Errorf("stdio server failed: %w", err)
 		}
 	}
@@ -154,16 +158,16 @@ func (c *Client) runStdioServer(ctx context.Context) error {
 
 // Shutdown gracefully shuts down the MCP server.
 func (c *Client) Shutdown(ctx context.Context) error {
-	if c.httpSrv != nil {
-		shutdownCtx, cancel := context.WithTimeout(ctx, c.config.ShutdownTimeout)
+	if c.HTTPSrv != nil {
+		shutdownCtx, cancel := context.WithTimeout(ctx, c.Config.ShutdownTimeout)
 		defer cancel()
 
-		c.logger.Info("Gracefully shutting down HTTP server...")
-		if err := c.httpSrv.Shutdown(shutdownCtx); err != nil {
-			c.logger.Errorf("Error during HTTP server shutdown: %v", err)
+		c.Logger.Info("Gracefully shutting down HTTP server...")
+		if err := c.HTTPSrv.Shutdown(shutdownCtx); err != nil {
+			c.Logger.Errorf("Error during HTTP server shutdown: %v", err)
 			return fmt.Errorf("failed to shutdown HTTP server: %w", err)
 		}
-		c.logger.Info("HTTP server shutdown complete")
+		c.Logger.Info("HTTP server shutdown complete")
 	}
 	return nil
 }

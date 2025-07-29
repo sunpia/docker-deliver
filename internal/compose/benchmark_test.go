@@ -20,7 +20,7 @@ import (
 	Compose "github.com/sunpia/docker-deliver/internal/compose"
 )
 
-// setupBenchmarkProject creates a mock project for benchmarking
+// setupBenchmarkProject creates a mock project for benchmarking.
 func setupBenchmarkProject(numServices int) *types.Project {
 	services := make(types.Services)
 
@@ -41,20 +41,15 @@ func setupBenchmarkProject(numServices int) *types.Project {
 	}
 }
 
-// setupBenchmarkDependencies creates mock dependencies for benchmarking
 func setupBenchmarkDependencies() *Compose.Dependencies {
 	return &Compose.Dependencies{
-		OSCreate: func(name string) (*os.File, error) {
-			return os.Create(name)
-		},
-		OSMkdirAll: func(path string, perm os.FileMode) error {
-			return os.MkdirAll(path, perm)
-		},
+		OSCreate:    os.Create,
+		OSMkdirAll:  os.MkdirAll,
 		YAMLMarshal: yaml.Marshal,
 		NewComposeService: func(cli *command.DockerCli) api.Service {
 			return compose.NewComposeService(cli)
 		},
-		ProjectFromOptions: func(ctx context.Context, opts *cli.ProjectOptions) (*types.Project, error) {
+		ProjectFromOptions: func(_ context.Context, _ *cli.ProjectOptions) (*types.Project, error) {
 			// Return a mock project for benchmarking
 			return setupBenchmarkProject(10), nil
 		},
@@ -67,7 +62,7 @@ func setupBenchmarkDependencies() *Compose.Dependencies {
 	}
 }
 
-// BenchmarkNewComposeClient benchmarks client creation
+// BenchmarkNewComposeClient benchmarks client creation.
 func BenchmarkNewComposeClient(b *testing.B) {
 	tempDir := b.TempDir()
 	config := Compose.Config{
@@ -80,7 +75,7 @@ func BenchmarkNewComposeClient(b *testing.B) {
 	deps := setupBenchmarkDependencies()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 		if err != nil {
 			b.Fatalf("Failed to create client: %v", err)
@@ -89,7 +84,7 @@ func BenchmarkNewComposeClient(b *testing.B) {
 	}
 }
 
-// BenchmarkSaveComposeFile_MultipleServices benchmarks compose file saving with various service counts
+// BenchmarkSaveComposeFile_MultipleServices benchmarks compose file saving with various service counts.
 func BenchmarkSaveComposeFile_MultipleServices(b *testing.B) {
 	tests := []struct {
 		name        string
@@ -117,7 +112,7 @@ func BenchmarkSaveComposeFile_MultipleServices(b *testing.B) {
 			}
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_, err := client.SaveComposeFile(context.Background())
 				if err != nil {
 					b.Fatalf("Failed to save compose file: %v", err)
@@ -127,7 +122,7 @@ func BenchmarkSaveComposeFile_MultipleServices(b *testing.B) {
 	}
 }
 
-// BenchmarkBuild_ServiceTagging benchmarks the service image tagging logic
+// BenchmarkBuild_ServiceTagging benchmarks the service image tagging logic.
 func BenchmarkBuild_ServiceTagging(b *testing.B) {
 	tests := []struct {
 		name        string
@@ -145,7 +140,7 @@ func BenchmarkBuild_ServiceTagging(b *testing.B) {
 			tag := "v1.0.0"
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				b.StopTimer()
 				project := setupBenchmarkProject(tt.numServices)
 				// Remove images to force tagging
@@ -167,7 +162,7 @@ func BenchmarkBuild_ServiceTagging(b *testing.B) {
 	}
 }
 
-// BenchmarkBuild_BuildConfigRemoval benchmarks removing build configs
+// BenchmarkBuild_BuildConfigRemoval benchmarks removing build configs.
 func BenchmarkBuild_BuildConfigRemoval(b *testing.B) {
 	tests := []struct {
 		name        string
@@ -182,7 +177,7 @@ func BenchmarkBuild_BuildConfigRemoval(b *testing.B) {
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				b.StopTimer()
 				project := setupBenchmarkProject(tt.numServices)
 				b.StartTimer()
@@ -199,7 +194,7 @@ func BenchmarkBuild_BuildConfigRemoval(b *testing.B) {
 	}
 }
 
-// BenchmarkImageCollection benchmarks image collection from services
+// BenchmarkImageCollection benchmarks image collection from services.
 func BenchmarkImageCollection(b *testing.B) {
 	tests := []struct {
 		name        string
@@ -218,7 +213,7 @@ func BenchmarkImageCollection(b *testing.B) {
 			project := setupBenchmarkProject(tt.numServices)
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				// Benchmark the image collection logic
 				images := make([]string, 0, len(project.Services))
 				for _, svc := range project.Services {
@@ -232,7 +227,7 @@ func BenchmarkImageCollection(b *testing.B) {
 	}
 }
 
-// BenchmarkYAMLMarshal benchmarks YAML marshaling of projects
+// BenchmarkYAMLMarshal benchmarks YAML marshaling of projects.
 func BenchmarkYAMLMarshal(b *testing.B) {
 	tests := []struct {
 		name        string
@@ -249,7 +244,7 @@ func BenchmarkYAMLMarshal(b *testing.B) {
 			project := setupBenchmarkProject(tt.numServices)
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				data, err := yaml.Marshal(project)
 				if err != nil {
 					b.Fatalf("Failed to marshal project: %v", err)
@@ -260,7 +255,7 @@ func BenchmarkYAMLMarshal(b *testing.B) {
 	}
 }
 
-// BenchmarkLoadProject benchmarks project loading
+// BenchmarkLoadProject benchmarks project loading.
 func BenchmarkLoadProject(b *testing.B) {
 	tempDir := b.TempDir()
 
@@ -286,7 +281,8 @@ services:
 `
 
 	composeFile := filepath.Join(tempDir, "docker-compose.yml")
-	err := os.WriteFile(composeFile, []byte(composeContent), 0644)
+	const filePermissions = 0600
+	err := os.WriteFile(composeFile, []byte(composeContent), filePermissions)
 	require.NoError(b, err)
 
 	config := Compose.Config{
@@ -298,15 +294,15 @@ services:
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := Compose.NewComposeClient(context.Background(), config)
-		if err != nil {
-			b.Fatalf("Failed to load project: %v", err)
+	for range b.N {
+		_, clientErr := Compose.NewComposeClient(context.Background(), config)
+		if clientErr != nil {
+			b.Fatalf("Failed to load project: %v", clientErr)
 		}
 	}
 }
 
-// BenchmarkProjectOperations benchmarks combined project operations
+// BenchmarkProjectOperations benchmarks combined project operations.
 func BenchmarkProjectOperations(b *testing.B) {
 	tests := []struct {
 		name        string
@@ -319,47 +315,57 @@ func BenchmarkProjectOperations(b *testing.B) {
 
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
-			tempDir := b.TempDir()
-			deps := setupBenchmarkDependencies()
-			deps.ProjectFromOptions = func(ctx context.Context, opts *cli.ProjectOptions) (*types.Project, error) {
-				return setupBenchmarkProject(tt.numServices), nil
-			}
-
-			config := Compose.Config{
-				DockerComposePath: []string{"docker-compose.yml"},
-				WorkDir:           tempDir,
-				OutputDir:         tempDir,
-				Tag:               "v1.0.0",
-				LogLevel:          "error",
-			}
-
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
-				if err != nil {
-					b.Fatalf("Failed to create client: %v", err)
-				}
-
-				// Benchmark the core operations (without Docker calls)
-				_, err = client.SaveComposeFile(context.Background())
-				if err != nil {
-					b.Fatalf("Failed to save compose file: %v", err)
-				}
-
-				// Benchmark the tagging logic
-				project := client.Project
-				for _, s := range project.Services {
-					if s.Image == "" {
-						s.Image = s.Name + ":" + client.Config.Tag
-						project.Services[s.Name] = s
-					}
-				}
-			}
+			benchmarkProjectOpsWithServices(b, tt.numServices)
 		})
 	}
 }
 
-// BenchmarkMemoryAllocation benchmarks memory allocation patterns
+// benchmarkProjectOpsWithServices is a helper function to reduce cognitive complexity.
+func benchmarkProjectOpsWithServices(b *testing.B, numServices int) {
+	tempDir := b.TempDir()
+	deps := setupBenchmarkDependencies()
+	deps.ProjectFromOptions = func(_ context.Context, _ *cli.ProjectOptions) (*types.Project, error) {
+		return setupBenchmarkProject(numServices), nil
+	}
+
+	config := Compose.Config{
+		DockerComposePath: []string{"docker-compose.yml"},
+		WorkDir:           tempDir,
+		OutputDir:         tempDir,
+		Tag:               "v1.0.0",
+		LogLevel:          "error",
+	}
+
+	b.ResetTimer()
+	for range b.N {
+		client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
+		if err != nil {
+			b.Fatalf("Failed to create client: %v", err)
+		}
+
+		// Benchmark the core operations (without Docker calls)
+		_, err = client.SaveComposeFile(context.Background())
+		if err != nil {
+			b.Fatalf("Failed to save compose file: %v", err)
+		}
+
+		// Benchmark the tagging logic
+		tagServices(client)
+	}
+}
+
+// tagServices applies tags to services without images.
+func tagServices(client *Compose.Client) {
+	project := client.Project
+	for _, s := range project.Services {
+		if s.Image == "" {
+			s.Image = s.Name + ":" + client.Config.Tag
+			project.Services[s.Name] = s
+		}
+	}
+}
+
+// BenchmarkMemoryAllocation benchmarks memory allocation patterns.
 func BenchmarkMemoryAllocation(b *testing.B) {
 	tests := []struct {
 		name        string
@@ -376,7 +382,7 @@ func BenchmarkMemoryAllocation(b *testing.B) {
 			b.ReportAllocs()
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				project := setupBenchmarkProject(tt.numServices)
 
 				// Simulate typical operations
@@ -400,7 +406,7 @@ func BenchmarkMemoryAllocation(b *testing.B) {
 	}
 }
 
-// BenchmarkConcurrentOperations benchmarks concurrent operations
+// BenchmarkConcurrentOperations benchmarks concurrent operations.
 func BenchmarkConcurrentOperations(b *testing.B) {
 	tempDir := b.TempDir()
 	deps := setupBenchmarkDependencies()
@@ -429,7 +435,7 @@ func BenchmarkConcurrentOperations(b *testing.B) {
 	})
 }
 
-// BenchmarkDeliverProject benchmarks the full MCP tool function
+// BenchmarkDeliverProject benchmarks the full MCP tool function.
 func BenchmarkDeliverProject(b *testing.B) {
 	tempDir := b.TempDir()
 
@@ -445,7 +451,8 @@ services:
 `
 
 	composeFile := filepath.Join(tempDir, "docker-compose.yml")
-	err := os.WriteFile(composeFile, []byte(composeContent), 0644)
+	const filePermissions = 0600
+	err := os.WriteFile(composeFile, []byte(composeContent), filePermissions)
 	require.NoError(b, err)
 
 	config := Compose.Config{
@@ -457,16 +464,16 @@ services:
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		client, err := Compose.NewComposeClient(context.Background(), config)
-		if err != nil {
-			b.Fatalf("Failed to create client: %v", err)
+	for range b.N {
+		client, clientErr := Compose.NewComposeClient(context.Background(), config)
+		if clientErr != nil {
+			b.Fatalf("Failed to create client: %v", clientErr)
 		}
 
 		// Benchmark only the non-Docker operations
-		_, err = client.SaveComposeFile(context.Background())
-		if err != nil {
-			b.Fatalf("Failed in deliver project: %v", err)
+		_, saveErr := client.SaveComposeFile(context.Background())
+		if saveErr != nil {
+			b.Fatalf("Failed in deliver project: %v", saveErr)
 		}
 	}
 }

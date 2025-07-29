@@ -67,7 +67,7 @@ func TestNewComposeClient_InvalidLogLevel(t *testing.T) {
 
 	client, err := Compose.NewComposeClient(context.Background(), config)
 
-	assert.Error(t, err, "Expected error for invalid log level")
+	require.Error(t, err, "Expected error for invalid log level")
 	assert.Nil(t, client, "Expected client to be nil on error")
 }
 
@@ -90,8 +90,8 @@ func TestNewComposeClient_LoadError(t *testing.T) {
 
 	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
-	assert.Error(t, err, "Expected error from project loading")
-	assert.Nil(t, client, "Expected client to be nil on error")
+	require.Error(t, err, "Expected error from project loading")
+	require.Nil(t, client, "Expected client to be nil on error")
 	assert.Contains(t, err.Error(), "failed to load project")
 }
 
@@ -120,8 +120,8 @@ func TestNewComposeClient_CreateOutputDirError(t *testing.T) {
 
 	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
-	assert.Error(t, err, "Expected error from mkdir")
-	assert.Nil(t, client, "Expected client to be nil on error")
+	require.Error(t, err, "Expected error from mkdir")
+	require.Nil(t, client, "Expected client to be nil on error")
 	assert.Contains(t, err.Error(), "permission denied")
 }
 
@@ -199,7 +199,7 @@ func TestSaveComposeFile_CreateFileError(t *testing.T) {
 
 	_, err := client.SaveComposeFile(context.Background())
 
-	assert.Error(t, err, "Expected error from file creation")
+	require.Error(t, err, "Expected error from file creation")
 	assert.Contains(t, err.Error(), "file creation failed")
 }
 
@@ -223,7 +223,7 @@ func TestSaveComposeFile_MarshalError(t *testing.T) {
 
 	_, err := client.SaveComposeFile(context.Background())
 
-	assert.Error(t, err, "Expected error from yaml marshal")
+	require.Error(t, err, "Expected error from yaml marshal")
 	assert.Contains(t, err.Error(), "marshal failed")
 }
 
@@ -256,7 +256,7 @@ func TestBuild_DockerClientError(t *testing.T) {
 
 	err := client.Build(context.Background())
 
-	assert.Error(t, err, "Expected error from docker client creation")
+	require.Error(t, err, "Expected error from docker client creation")
 	assert.Contains(t, err.Error(), "docker client creation failed")
 }
 
@@ -284,7 +284,7 @@ func TestSaveImages_DockerClientError(t *testing.T) {
 
 	err := client.SaveImages(context.Background())
 
-	assert.Error(t, err, "Expected error from docker client creation")
+	require.Error(t, err, "Expected error from docker client creation")
 	assert.Contains(t, err.Error(), "docker client creation failed")
 }
 
@@ -467,8 +467,10 @@ func TestBuild_WithExistingImages(t *testing.T) {
 	}
 
 	// Verify only services without images got tagged
-	assert.Equal(t, "existing:latest", project.Services["web"].Image, "Expected web service image to remain 'existing:latest'")
-	assert.Equal(t, "api:v2.0.0", project.Services["api"].Image, "Expected api service image to be 'api:v2.0.0'")
+	assert.Equal(t, "existing:latest", project.Services["web"].Image,
+		"Expected web service image to remain 'existing:latest'")
+	assert.Equal(t, "api:v2.0.0", project.Services["api"].Image,
+		"Expected api service image to be 'api:v2.0.0'")
 }
 
 func TestBuild_BuildConfigRemoval(t *testing.T) {
@@ -535,7 +537,7 @@ func TestNewComposeClient_OutputDirExists(t *testing.T) {
 
 	client, err := Compose.NewComposeClientWithDeps(context.Background(), config, deps)
 
-	assert.NoError(t, err, "Expected no error when output directory exists")
+	require.NoError(t, err, "Expected no error when output directory exists")
 	assert.NotNil(t, client, "Expected client to be not nil")
 }
 

@@ -1,4 +1,4 @@
-package mcp
+package mcp_test
 
 import (
 	"context"
@@ -6,16 +6,17 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
+
+	mcp_internal "github.com/sunpia/docker-deliver/internal/mcp"
 )
 
 // BenchmarkServiceRegistry_RegisterService benchmarks service registration.
 func BenchmarkServiceRegistry_RegisterService(b *testing.B) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		service := &MockService{}
 		service.On("RegisterTool", mock.Anything, mock.Anything).Return(nil)
 
@@ -28,11 +29,11 @@ func BenchmarkServiceRegistry_RegisterService(b *testing.B) {
 
 // BenchmarkServiceRegistry_GetService benchmarks service retrieval.
 func BenchmarkServiceRegistry_GetService(b *testing.B) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	// Pre-populate with services
 	const numServices = 1000
-	for i := 0; i < numServices; i++ {
+	for i := range numServices {
 		service := &MockService{}
 		service.On("RegisterTool", mock.Anything, mock.Anything).Return(nil)
 		err := registry.RegisterService(fmt.Sprintf("service-%d", i), service)
@@ -42,7 +43,7 @@ func BenchmarkServiceRegistry_GetService(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		serviceName := fmt.Sprintf("service-%d", i%numServices)
 		_, exists := registry.GetService(serviceName)
 		if !exists {
@@ -53,11 +54,11 @@ func BenchmarkServiceRegistry_GetService(b *testing.B) {
 
 // BenchmarkServiceRegistry_GetServices benchmarks getting all services.
 func BenchmarkServiceRegistry_GetServices(b *testing.B) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	// Pre-populate with services
 	const numServices = 100
-	for i := 0; i < numServices; i++ {
+	for i := range numServices {
 		service := &MockService{}
 		service.On("RegisterTool", mock.Anything, mock.Anything).Return(nil)
 		err := registry.RegisterService(fmt.Sprintf("service-%d", i), service)
@@ -67,7 +68,7 @@ func BenchmarkServiceRegistry_GetServices(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		services := registry.GetServices()
 		if len(services) != numServices {
 			b.Fatalf("Expected %d services, got %d", numServices, len(services))
@@ -77,11 +78,11 @@ func BenchmarkServiceRegistry_GetServices(b *testing.B) {
 
 // BenchmarkServiceRegistry_ConcurrentReadWrite benchmarks concurrent read/write operations.
 func BenchmarkServiceRegistry_ConcurrentReadWrite(b *testing.B) {
-	registry := NewServiceRegistry()
+	registry := mcp_internal.NewServiceRegistry()
 
 	// Pre-populate with some services
 	const initialServices = 100
-	for i := 0; i < initialServices; i++ {
+	for i := range initialServices {
 		service := &MockService{}
 		service.On("RegisterTool", mock.Anything, mock.Anything).Return(nil)
 		err := registry.RegisterService(fmt.Sprintf("initial-service-%d", i), service)
@@ -95,11 +96,11 @@ func BenchmarkServiceRegistry_ConcurrentReadWrite(b *testing.B) {
 	var wg sync.WaitGroup
 
 	// Start readers
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
-		go func(id int) {
+		go func(_ int) {
 			defer wg.Done()
-			for j := 0; j < b.N/10; j++ {
+			for j := range b.N / 10 {
 				serviceName := fmt.Sprintf("initial-service-%d", j%initialServices)
 				registry.GetService(serviceName)
 				registry.Count()
@@ -109,15 +110,20 @@ func BenchmarkServiceRegistry_ConcurrentReadWrite(b *testing.B) {
 	}
 
 	// Start writers
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < b.N/50; j++ {
+			for j := range b.N / 50 {
 				service := &MockService{}
 				service.On("RegisterTool", mock.Anything, mock.Anything).Return(nil)
 				serviceName := fmt.Sprintf("writer-%d-service-%d", id, j)
-				registry.RegisterService(serviceName, service)
+				err := registry.RegisterService(serviceName, service)
+				if err != nil {
+					// Use b.Error instead of b.Fatalf to avoid calling Fatalf from a goroutine
+					b.Errorf("Failed to register service: %v", err)
+					return
+				}
 			}
 		}(i)
 	}
@@ -125,72 +131,17 @@ func BenchmarkServiceRegistry_ConcurrentReadWrite(b *testing.B) {
 	wg.Wait()
 }
 
-// BenchmarkClient_SetupServer benchmarks server setup with multiple services.
-func BenchmarkClient_SetupServer(b *testing.B) {
-	const numServices = 50
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-
-		// Create a fresh registry for each iteration
-		registry := NewServiceRegistry()
-
-		// Register services
-		for j := 0; j < numServices; j++ {
-			service := &MockService{}
-			service.On("RegisterTool", ":8080", mock.AnythingOfType("*mcp.Server")).Return(nil)
-			err := registry.RegisterService(fmt.Sprintf("service-%d", j), service)
-			if err != nil {
-				b.Fatalf("Failed to register service: %v", err)
-			}
-		}
-
-		config := Config{
-			HttpAddr:      ":8080",
-			ServerName:    "benchmark-server",
-			ServerVersion: "v1.0.0",
-		}
-
-		client := &Client{
-			config:   config,
-			logger:   &logrus.Logger{},
-			registry: registry,
-		}
-
-		b.StartTimer()
-
-		// Benchmark the server setup
-		err := client.setupServer()
-		if err != nil {
-			b.Fatalf("Failed to setup server: %v", err)
-		}
-
-		b.StopTimer()
-
-		// Verify all mocks were called
-		for j := 0; j < numServices; j++ {
-			serviceName := fmt.Sprintf("service-%d", j)
-			service, exists := registry.GetService(serviceName)
-			if !exists {
-				b.Fatalf("Service %s not found", serviceName)
-			}
-			service.(*MockService).AssertExpectations(b)
-		}
-	}
-}
-
 // BenchmarkNewClient benchmarks client creation.
 func BenchmarkNewClient(b *testing.B) {
-	config := Config{
-		HttpAddr:      ":8080",
+	config := mcp_internal.Config{
+		HTTPAddr:      ":8080",
 		ServerName:    "benchmark-server",
 		ServerVersion: "v1.0.0",
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		client, err := NewClient(context.Background(), config)
+	for range b.N {
+		client, err := mcp_internal.NewClient(context.Background(), config)
 		if err != nil {
 			b.Fatalf("Failed to create client: %v", err)
 		}
